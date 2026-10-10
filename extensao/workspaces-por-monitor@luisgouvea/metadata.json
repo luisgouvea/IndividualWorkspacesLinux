@@ -1,0 +1,8 @@
+{
+  "uuid": "workspaces-por-monitor@luisgouvea",
+  "name": "Workspaces por monitor",
+  "description": "Cada monitor tem os seus próprios workspaces, como no macOS: trocar num monitor não mexe no outro. Pede workspaces fixos em número ímpar (5 dá 3 por monitor) e abrangendo as telas.",
+  "shell-version": ["46"],
+  "session-modes": ["user", "unlock-dialog"],
+  "version": 1
+}

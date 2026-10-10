@@ -6,6 +6,7 @@ import {
     visivelQueCabe,
     planejarInicio,
     planejarTroca,
+    planejarLevarJanela,
     deltaParaGlobal,
     deltaParaJanela,
     deltaParaAtalho,
@@ -249,4 +250,31 @@ test('compensar uma troca global leva só o monitor-alvo e preserva o outro', ()
     janelas = aplicar(janelas, plano.movimentos);
     assert.deepEqual(visiveis(janelas, 0, CINCO), ['x1']);
     assert.deepEqual(visiveis(janelas, 1, CINCO), ['y2']);
+});
+
+test('levar a janela ao workspace vizinho troca o monitor e deixa a janela à vista', () => {
+    const janelas = [
+        {id: 'levada', global: 2},
+        {id: 'ficou', global: 2},
+        {id: 'vizinha', global: 3},
+    ];
+    assert.deepEqual(planejarLevarJanela(janelas, 'levada', 1, 1, CINCO), {
+        visivel: 2,
+        movimentos: [
+            {id: 'ficou', global: 1},
+            {id: 'vizinha', global: 2},
+        ],
+    });
+});
+
+test('levar a janela além da ponta é recusado', () => {
+    assert.equal(planejarLevarJanela([{id: 'a', global: 2}], 'a', 3, 1, CINCO), null);
+});
+
+test('levar a janela que não estava à vista também a traz para o centro', () => {
+    const janelas = [{id: 'a', global: 3}];
+    assert.deepEqual(planejarLevarJanela(janelas, 'a', 1, 2, CINCO), {
+        visivel: 3,
+        movimentos: [{id: 'a', global: 2}],
+    });
 });

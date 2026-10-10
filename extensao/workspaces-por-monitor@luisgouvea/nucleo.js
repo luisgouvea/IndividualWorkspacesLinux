@@ -72,6 +72,17 @@ export function planejarTroca(janelas, visivel, delta, config) {
     return {visivel: novoVisivel, movimentos};
 }
 
+export function planejarLevarJanela(janelas, id, visivel, delta, config) {
+    const levada = janelas.find(j => j.id === id);
+    const plano = planejarTroca(janelas.filter(j => j.id !== id), visivel, delta, config);
+    if (plano === null || delta === 0)
+        return null;
+
+    if (levada && levada.global !== config.centro)
+        plano.movimentos.push({id, global: config.centro});
+    return plano;
+}
+
 export function deltaParaGlobal(global, config) {
     return global - config.centro;
 }
