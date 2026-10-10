@@ -1,4 +1,6 @@
-# Workspaces por monitor (GNOME 46)
+# IndividualWorkspacesLinux
+
+Extensão **Workspaces por monitor** para Ubuntu 24.04 / GNOME 46 (Wayland).
 
 Cada monitor tem os seus próprios workspaces, como no macOS. Trocar o workspace
 de um monitor **não mexe no outro**, e a navegação para no primeiro e no
@@ -28,8 +30,8 @@ uma simulação. O truque é o *carrossel*:
 ## Instalação
 
 ```bash
-git clone <url-deste-repositório> ~/workspaces-por-monitor
-cd ~/workspaces-por-monitor
+git clone https://github.com/luisgouvea/IndividualWorkspacesLinux.git ~/IndividualWorkspacesLinux
+cd ~/IndividualWorkspacesLinux
 ./instalar.sh
 ```
 
