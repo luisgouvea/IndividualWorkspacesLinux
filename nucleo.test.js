@@ -8,7 +8,9 @@ import {
     planejarTroca,
     planejarLevarJanela,
     planejarMaximizar,
-    planejarVoltaAoFechar,
+    planejarDesmaximizar,
+    planejarFechamento,
+    deslocar,
     deltaParaGlobal,
     deltaParaJanela,
     deltaParaAtalho,
@@ -281,7 +283,18 @@ test('levar a janela que não estava à vista também a traz para o centro', () 
     });
 });
 
-test('maximizar leva a janela ao primeiro workspace vazio à direita, sozinha', () => {
+const SETE = lerConfiguracao({dinamicos: false, apenasNoPrincipal: false, total: 7});
+
+test('deslocar soma o passo só dentro do intervalo', () => {
+    const empurrao = {de: 2, ate: 3, passo: 1};
+    assert.equal(deslocar(1, empurrao), 1);
+    assert.equal(deslocar(2, empurrao), 3);
+    assert.equal(deslocar(3, empurrao), 4);
+    assert.equal(deslocar(4, empurrao), 4);
+    assert.equal(deslocar(2, {de: 2, ate: 1, passo: 1}), 2);
+});
+
+test('maximizar com vazio logo à direita leva a janela para lá, sozinha', () => {
     const janelas = [
         {id: 'max', global: 2},
         {id: 'outra', global: 2},
@@ -289,33 +302,71 @@ test('maximizar leva a janela ao primeiro workspace vazio à direita, sozinha', 
     assert.deepEqual(planejarMaximizar(janelas, 'max', 1, CINCO), {
         visivel: 2,
         origem: 1,
+        destino: 2,
+        deslocamento: {de: 2, ate: 1, passo: 1},
         movimentos: [{id: 'outra', global: 1}],
     });
 });
 
-test('maximizar pula o workspace ocupado à direita', () => {
+test('maximizar insere logo à direita e empurra o workspace ocupado', () => {
     const janelas = [
         {id: 'max', global: 2},
         {id: 'outra', global: 2},
-        {id: 'no-ws2', global: 3},
+        {id: 'empurrada', global: 3},
     ];
-    const plano = planejarMaximizar(janelas, 'max', 1, CINCO);
-    assert.equal(plano.visivel, 3);
-    assert.equal(plano.origem, 1);
+    assert.deepEqual(planejarMaximizar(janelas, 'max', 1, CINCO), {
+        visivel: 2,
+        origem: 1,
+        destino: 2,
+        deslocamento: {de: 2, ate: 2, passo: 1},
+        movimentos: [{id: 'outra', global: 1}],
+    });
 });
 
-test('sem vaga à direita, maximizar usa o vazio mais próximo à esquerda', () => {
+test('o empurrão anda em cascata até o primeiro vazio', () => {
+    const janelas = [
+        {id: 'max', global: 3},
+        {id: 'outra', global: 3},
+        {id: 'no-ws2', global: 4},
+        {id: 'no-ws3', global: 5},
+    ];
+    const plano = planejarMaximizar(janelas, 'max', 1, SETE);
+    assert.deepEqual(plano.deslocamento, {de: 2, ate: 3, passo: 1});
+    assert.equal(plano.visivel, 2);
+    assert.deepEqual(plano.movimentos, [{id: 'outra', global: 2}]);
+});
+
+test('sem vazio à direita, empurra para a esquerda e a janela fica à vista', () => {
     const janelas = [
         {id: 'max', global: 2},
         {id: 'outra', global: 2},
         {id: 'no-ws1', global: 0},
     ];
-    const plano = planejarMaximizar(janelas, 'max', 3, CINCO);
-    assert.equal(plano.visivel, 2);
-    assert.equal(plano.origem, 3);
+    assert.deepEqual(planejarMaximizar(janelas, 'max', 3, CINCO), {
+        visivel: 3,
+        origem: 2,
+        destino: 3,
+        deslocamento: {de: 3, ate: 3, passo: -1},
+        movimentos: [{id: 'outra', global: 1}],
+    });
 });
 
-test('sem nenhuma vaga, maximizar não move nada', () => {
+test('o empurrão para a esquerda também anda em cascata', () => {
+    const janelas = [
+        {id: 'max', global: 2},
+        {id: 'outra', global: 2},
+        {id: 'no-ws2', global: 1},
+    ];
+    const plano = planejarMaximizar(janelas, 'max', 3, CINCO);
+    assert.deepEqual(plano.deslocamento, {de: 2, ate: 3, passo: -1});
+    assert.equal(plano.origem, 2);
+    assert.deepEqual(plano.movimentos, [
+        {id: 'outra', global: 1},
+        {id: 'no-ws2', global: 0},
+    ]);
+});
+
+test('sem nenhum vazio, maximizar não move nada', () => {
     const janelas = [
         {id: 'max', global: 2},
         {id: 'outra', global: 2},
@@ -333,19 +384,65 @@ test('janela que já está sozinha não sai do lugar ao maximizar', () => {
     assert.equal(planejarMaximizar(janelas, 'max', 1, CINCO), null);
 });
 
-test('ao fechar a janela maximizada, o monitor volta à origem se o destino ficou vazio', () => {
-    const janelas = [{id: 'outra', global: 1}];
-    assert.deepEqual(planejarVoltaAoFechar(janelas, 2, 2, 1, CINCO), {
+test('desmaximizar volta à origem e o workspace vazio some', () => {
+    const janelas = [
+        {id: 'max', global: 2},
+        {id: 'outra', global: 1},
+        {id: 'empurrada', global: 3},
+    ];
+    assert.deepEqual(planejarDesmaximizar(janelas, 'max', 2, 1, CINCO), {
         visivel: 1,
+        deslocamento: {de: 3, ate: 3, passo: -1},
         movimentos: [{id: 'outra', global: 2}],
     });
 });
 
-test('ao fechar, não volta se o destino ainda tem janelas', () => {
-    const janelas = [{id: 'chegou-depois', global: 2}];
-    assert.equal(planejarVoltaAoFechar(janelas, 2, 2, 1, CINCO), null);
+test('desmaximizar com outra janela no destino não remove o workspace', () => {
+    const janelas = [
+        {id: 'max', global: 2},
+        {id: 'chegou-depois', global: 2},
+        {id: 'outra', global: 1},
+    ];
+    assert.deepEqual(planejarDesmaximizar(janelas, 'max', 2, 1, CINCO), {
+        visivel: 1,
+        deslocamento: null,
+        movimentos: [
+            {id: 'chegou-depois', global: 3},
+            {id: 'outra', global: 2},
+        ],
+    });
 });
 
-test('ao fechar, não volta se o monitor já está em outro workspace', () => {
-    assert.equal(planejarVoltaAoFechar([], 3, 2, 1, CINCO), null);
+test('desmaximizar quem já está na origem não faz nada', () => {
+    const janelas = [{id: 'max', global: 2}];
+    assert.equal(planejarDesmaximizar(janelas, 'max', 1, 1, CINCO), null);
+});
+
+test('fechar a maximizada estando nela volta à origem e o workspace some', () => {
+    const janelas = [
+        {id: 'outra', global: 1},
+        {id: 'empurrada', global: 3},
+    ];
+    assert.deepEqual(planejarFechamento(janelas, 2, {origem: 1, destino: 2}, CINCO), {
+        visivel: 1,
+        deslocamento: {de: 3, ate: 3, passo: -1},
+        movimentos: [{id: 'outra', global: 2}],
+    });
+});
+
+test('fechar a maximizada estando em outro workspace não muda o que está à vista', () => {
+    const janelas = [
+        {id: 'outra', global: 0},
+        {id: 'a-vista', global: 2},
+    ];
+    assert.deepEqual(planejarFechamento(janelas, 3, {origem: 1, destino: 2}, CINCO), {
+        visivel: 2,
+        deslocamento: {de: 3, ate: 3, passo: -1},
+        movimentos: [{id: 'outra', global: 1}],
+    });
+});
+
+test('fechar com o destino ainda ocupado não faz nada', () => {
+    const janelas = [{id: 'chegou-depois', global: 2}];
+    assert.equal(planejarFechamento(janelas, 2, {origem: 1, destino: 2}, CINCO), null);
 });

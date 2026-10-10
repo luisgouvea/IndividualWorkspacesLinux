@@ -13,7 +13,9 @@ import {
     planejarTroca,
     planejarLevarJanela,
     planejarMaximizar,
-    planejarVoltaAoFechar,
+    planejarDesmaximizar,
+    planejarFechamento,
+    deslocar,
     deltaParaGlobal,
     deltaParaJanela,
     deltaParaAtalho,
@@ -394,9 +396,8 @@ export default class WorkspacesPorMonitor extends Extension {
         if (plano === null)
             return;
 
-        this._aplicar(plano.movimentos, descritas);
-        this._visiveis[monitor] = plano.visivel;
-        this._origens.set(janela.get_id(), {monitor, origem: plano.origem, destino: plano.visivel});
+        this._aplicarPlano(monitor, plano, descritas);
+        this._origens.set(janela.get_id(), {monitor, origem: plano.origem, destino: plano.destino});
         janela.activate(global.get_current_time());
     }
 
@@ -410,14 +411,12 @@ export default class WorkspacesPorMonitor extends Extension {
             return;
 
         const {monitor, origem} = lembrada;
-        const visivel = this._visivel(monitor);
         const descritas = this._doMonitor(monitor);
-        const plano = planejarLevarJanela(descritas, id, visivel, origem - visivel, this._config);
+        const plano = planejarDesmaximizar(descritas, id, this._visivel(monitor), origem, this._config);
         if (plano === null)
             return;
 
-        this._aplicar(plano.movimentos, descritas);
-        this._visiveis[monitor] = plano.visivel;
+        this._aplicarPlano(monitor, plano, descritas);
         janela.activate(global.get_current_time());
     }
 
@@ -429,15 +428,29 @@ export default class WorkspacesPorMonitor extends Extension {
         if (!this._deveInterceptar())
             return;
 
-        const {monitor, origem, destino} = lembrada;
+        const {monitor} = lembrada;
+        const visivelAntes = this._visivel(monitor);
         const descritas = this._doMonitor(monitor);
-        const plano = planejarVoltaAoFechar(descritas, this._visivel(monitor), destino, origem, this._config);
+        const plano = planejarFechamento(descritas, visivelAntes, lembrada, this._config);
         if (plano === null)
             return;
 
+        this._aplicarPlano(monitor, plano, descritas);
+        if (visivelAntes === lembrada.destino)
+            this._focarTopoDo(monitor);
+    }
+
+    _aplicarPlano(monitor, plano, descritas) {
         this._aplicar(plano.movimentos, descritas);
         this._visiveis[monitor] = plano.visivel;
-        this._focarTopoDo(monitor);
+        if (!plano.deslocamento)
+            return;
+        for (const lembrada of this._origens.values()) {
+            if (lembrada.monitor !== monitor)
+                continue;
+            lembrada.origem = deslocar(lembrada.origem, plano.deslocamento);
+            lembrada.destino = deslocar(lembrada.destino, plano.deslocamento);
+        }
     }
 
     _aoTrocarGlobal() {

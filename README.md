@@ -67,15 +67,23 @@ anterior e religa o que o instalador desativou.
 Como a tela cheia do macOS, mas só para **maximizar** (botão, duplo clique no
 título ou `Super+↑`).
 
-- **Para onde a janela vai:** para o **próximo workspace vazio à direita, só
-  naquele monitor**, que passa a mostrá-la sozinha. Sem vaga à direita, usa a
-  mais próxima à esquerda. Sem vaga nenhuma, maximiza no lugar.
-- **Desmaximizar:** a janela volta ao workspace de onde veio, e o monitor vai
-  junto.
-- **Fechar a janela:** se o workspace dela ficar vazio, o monitor volta ao
-  workspace de origem.
-- **O que não muda:** janela que já está sozinha maximiza no lugar. Tela
-  cheia (F11, vídeo) e meia tela (`Super+←/→`) também não saem do lugar.
+- **Onde a janela vai:** para um workspace novo **logo à direita** do atual,
+  só naquele monitor. Os workspaces ocupados que estavam ali são **empurrados**
+  uma posição para a direita. Exemplo: WS1 = A+B, WS2 = C, WS3 vazio.
+  Maximizar A deixa WS1 = B, WS2 = A e WS3 = C.
+- **Limite:** cada monitor tem um número fixo de workspaces, então o empurrão
+  precisa de um workspace vazio em algum lugar à direita para absorvê-lo.
+  - Sem vazio à direita, o empurrão vai para a esquerda: o workspace atual
+    anda uma posição para a esquerda, e a janela continua à vista logo depois
+    dele.
+  - Sem nenhum vazio, maximiza no lugar.
+- **Desmaximizar ou fechar:** o workspace da janela **some** e os da direita
+  voltam uma posição, como no macOS.
+  - Ao desmaximizar, a janela volta ao workspace de onde veio, e o monitor vai
+    junto.
+  - Ao fechar, se você estava nele, o monitor volta à origem.
+- **O que não muda:** o outro monitor. Também ficam no lugar a janela que já
+  está sozinha, a tela cheia (F11, vídeo) e a meia tela (`Super+←/→`).
 
 Com 3 workspaces por monitor, a vaga acaba rápido. `POR_MONITOR=4 ./instalar.sh`
 dá mais espaço.
@@ -133,9 +141,9 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
   - soltar uma janela numa miniatura vazia fora das pontas.
 - [ ] Alt+Tab e dock para uma janela do outro monitor.
 - [ ] `Super+Shift+PageDown` leva a janela junto.
-- [ ] Maximizar uma janela que divide o workspace com outra: ela vai sozinha
-      para o vazio à direita, só naquele monitor.
-- [ ] Desmaximizar volta; fechar a janela também volta.
+- [ ] Com WS1 = duas janelas, WS2 = uma e WS3 vazio: maximizar no WS1 põe a
+      janela sozinha no WS2 e empurra a do WS2 para o WS3, só naquele monitor.
+- [ ] Desmaximizar desfaz o empurrão (a ordem volta); fechar também.
 - [ ] F11 e `Super+←` não movem a janela.
 - [ ] No WS1 e no WS3, o atalho para.
 - [ ] Arrastar uma janela de um monitor para o outro.

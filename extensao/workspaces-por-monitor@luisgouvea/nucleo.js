@@ -83,16 +83,35 @@ export function planejarLevarJanela(janelas, id, visivel, delta, config) {
     return plano;
 }
 
-function primeiroVazio(ocupados, origem, config) {
-    for (let virtual = origem + 1; virtual <= config.porMonitor; virtual++) {
-        if (!ocupados.has(virtual))
-            return virtual;
+export function deslocar(virtual, {de, ate, passo}) {
+    return virtual >= de && virtual <= ate ? virtual + passo : virtual;
+}
+
+function remapear(janelas, visivel, novoVisivel, novoVirtualDe, config) {
+    const movimentos = [];
+    for (const janela of janelas) {
+        const virtual = virtualLimitado(janela.global, config.centro, visivel, config);
+        const global = novoVirtualDe(janela, virtual) - novoVisivel + config.centro;
+        if (global !== janela.global)
+            movimentos.push({id: janela.id, global});
     }
-    for (let virtual = origem - 1; virtual >= 1; virtual--) {
+    return movimentos;
+}
+
+function ocupacao(janelas, visivel, config) {
+    return new Set(janelas.map(j => virtualLimitado(j.global, config.centro, visivel, config)));
+}
+
+function vazioAPartirDe(ocupados, inicio, passo, config) {
+    for (let virtual = inicio; virtual >= 1 && virtual <= config.porMonitor; virtual += passo) {
         if (!ocupados.has(virtual))
             return virtual;
     }
     return null;
+}
+
+function remocao(virtual, config) {
+    return {de: virtual + 1, ate: config.porMonitor, passo: -1};
 }
 
 export function planejarMaximizar(janelas, id, visivel, config) {
@@ -100,28 +119,62 @@ export function planejarMaximizar(janelas, id, visivel, config) {
     if (!maximizada)
         return null;
 
-    const virtualDe = janela => virtualLimitado(janela.global, config.centro, visivel, config);
-    const origem = virtualDe(maximizada);
-    const ocupados = new Set(janelas.filter(j => j.id !== id).map(virtualDe));
-    if (!ocupados.has(origem))
+    const atual = virtualLimitado(maximizada.global, config.centro, visivel, config);
+    const outras = janelas.filter(j => j.id !== id);
+    const ocupados = ocupacao(outras, visivel, config);
+    if (!ocupados.has(atual))
         return null;
 
-    const destino = primeiroVazio(ocupados, origem, config);
-    if (destino === null)
-        return null;
+    let origem, destino, deslocamento;
+    const vazioADireita = vazioAPartirDe(ocupados, atual + 1, 1, config);
+    if (vazioADireita !== null) {
+        deslocamento = {de: atual + 1, ate: vazioADireita - 1, passo: 1};
+        origem = atual;
+        destino = atual + 1;
+    } else {
+        const vazioAEsquerda = vazioAPartirDe(ocupados, atual - 1, -1, config);
+        if (vazioAEsquerda === null)
+            return null;
+        deslocamento = {de: vazioAEsquerda + 1, ate: atual, passo: -1};
+        origem = atual - 1;
+        destino = atual;
+    }
 
-    const plano = planejarLevarJanela(janelas, id, visivel, destino - visivel, config);
-    return plano && {...plano, origem};
+    const movimentos = remapear(janelas, visivel, destino,
+        (janela, virtual) => (janela.id === id ? destino : deslocar(virtual, deslocamento)), config);
+    return {visivel: destino, origem, destino, deslocamento, movimentos};
 }
 
-export function planejarVoltaAoFechar(janelas, visivel, destino, origem, config) {
-    if (visivel !== destino)
+export function planejarDesmaximizar(janelas, id, visivel, origem, config) {
+    const maximizada = janelas.find(j => j.id === id);
+    if (!maximizada)
         return null;
-    const ocupado = janelas.some(j =>
-        virtualLimitado(j.global, config.centro, visivel, config) === visivel);
-    if (ocupado)
+
+    const atual = virtualLimitado(maximizada.global, config.centro, visivel, config);
+    if (atual === origem)
         return null;
-    return planejarTroca(janelas, visivel, origem - visivel, config);
+
+    const sozinha = !ocupacao(janelas.filter(j => j.id !== id), visivel, config).has(atual);
+    const deslocamento = sozinha ? remocao(atual, config) : null;
+    const novaOrigem = deslocamento ? deslocar(origem, deslocamento) : origem;
+
+    const movimentos = remapear(janelas, visivel, novaOrigem, (janela, virtual) => {
+        if (janela.id === id)
+            return novaOrigem;
+        return deslocamento ? deslocar(virtual, deslocamento) : virtual;
+    }, config);
+    return {visivel: novaOrigem, deslocamento, movimentos};
+}
+
+export function planejarFechamento(janelas, visivel, {origem, destino}, config) {
+    if (ocupacao(janelas, visivel, config).has(destino))
+        return null;
+
+    const deslocamento = remocao(destino, config);
+    const novoVisivel = deslocar(visivel === destino ? origem : visivel, deslocamento);
+    const movimentos = remapear(janelas, visivel, novoVisivel,
+        (_janela, virtual) => deslocar(virtual, deslocamento), config);
+    return {visivel: novoVisivel, deslocamento, movimentos};
 }
 
 export function deltaParaGlobal(global, config) {

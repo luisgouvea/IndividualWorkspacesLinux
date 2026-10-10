@@ -373,3 +373,97 @@ test('desligar solta os sinais de maximizar e fechar', () => {
     extensao = null;
     assert.equal(gerenciadorDeJanelas._ligacoes.length, 0);
 });
+
+const EMPURRANDO = [
+    {id: 'x1', monitor: 0, global: 0},
+    {id: 'x1b', monitor: 0, global: 0},
+    {id: 'x2', monitor: 0, global: 1},
+    {id: 'y1', monitor: 1, global: 0},
+];
+
+test('maximizar insere o workspace logo à direita e empurra o que estava lá', () => {
+    ligar({janelas: EMPURRANDO});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.deepEqual(aVista(1), ['y1']);
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x2']);
+    apertar('switch-to-workspace-1');
+    assert.deepEqual(aVista(0), ['x1b']);
+});
+
+test('desmaximizar desfaz o empurrão: o workspace some e a ordem volta', () => {
+    ligar({janelas: EMPURRANDO});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    janela('x1').desmaximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1', 'x1b']);
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x2']);
+});
+
+test('fechar a maximizada também desfaz o empurrão', () => {
+    ligar({janelas: EMPURRANDO});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    janela('x1').fechar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1b']);
+    focar('x1b');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x2']);
+});
+
+test('sem vazio à direita, empurra para a esquerda e a janela continua à vista', () => {
+    ligar({
+        ativo: 1,
+        janelas: [
+            {id: 'x2', monitor: 0, global: 1},
+            {id: 'x2b', monitor: 0, global: 1},
+            {id: 'x3', monitor: 0, global: 2},
+            {id: 'y1', monitor: 1, global: 1},
+        ],
+    });
+    assert.deepEqual(aVista(0), ['x2', 'x2b']);
+    janela('x2').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x2']);
+    assert.deepEqual(aVista(1), ['y1']);
+    focar('x2');
+    apertar('switch-to-workspace-left');
+    assert.deepEqual(aVista(0), ['x2b']);
+    apertar('switch-to-workspace-3');
+    assert.deepEqual(aVista(0), ['x3']);
+});
+
+test('duas maximizações seguidas: fechar a primeira ainda volta ao lugar certo', () => {
+    ligar({
+        janelas: [
+            {id: 'a', monitor: 0, global: 0},
+            {id: 'b', monitor: 0, global: 0},
+            {id: 'c', monitor: 0, global: 0},
+        ],
+    });
+    janela('a').maximizar();
+    desenhar();
+    focar('a');
+    apertar('switch-to-workspace-left');
+    assert.deepEqual(aVista(0), ['b', 'c']);
+    janela('b').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['b']);
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['a']);
+    janela('a').fechar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['c']);
+    focar('c');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['b']);
+});
