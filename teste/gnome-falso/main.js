@@ -1,1 +1,1 @@
-export {wm, layoutManager, xdndHandler, notify} from './estado.js';
+export {wm, layoutManager, xdndHandler, overview, notify} from './estado.js';

@@ -6,6 +6,7 @@ const MAPA = {
     'gi://Meta': 'meta.js',
     'gi://Shell': 'shell.js',
     'resource:///org/gnome/shell/ui/main.js': 'main.js',
+    'resource:///org/gnome/shell/ui/workspaceThumbnail.js': 'miniatura.js',
     'resource:///org/gnome/shell/extensions/extension.js': 'extensao.js',
 };
 

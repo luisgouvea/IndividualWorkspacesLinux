@@ -199,6 +199,15 @@ export const wm = {
 };
 
 export const layoutManager = new GerenciadorDeLayout();
+
+export const overview = {
+    get visible() {
+        return estado.overviewAberto;
+    },
+    hide() {
+        estado.overviewAberto = false;
+    },
+};
 export const xdndHandler = new Sinais();
 
 export function notify(titulo, detalhe) {
@@ -247,6 +256,7 @@ export function montarCenario({
         laters: new Map(),
         proximoLater: 0,
         atalhosDoShell: [],
+        overviewAberto: false,
         notificacoes: [],
         workspaces: Array.from({length: total}, () => new Workspace()),
     });
@@ -290,4 +300,4 @@ export function indiceAtivo() {
     return estado.workspaces.indexOf(estado.ativo);
 }
 
-export {Workspace, ativarPeloMutter, workspaceManager};
+export {Sinais, Workspace, ativarPeloMutter, workspaceManager};

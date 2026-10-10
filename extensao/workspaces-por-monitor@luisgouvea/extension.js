@@ -4,6 +4,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {ThumbnailState, WorkspaceThumbnail} from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {
@@ -66,6 +67,20 @@ export default class WorkspacesPorMonitor extends Extension {
                 if (!extensao._deveInterceptar() || !janela)
                     return original.call(this, janela, momento);
                 return extensao._aoPedirJanela(this.index(), janela, momento);
+            });
+
+        this._injecoes.overrideMethod(WorkspaceThumbnail.prototype, 'activate', original =>
+            function (momento) {
+                if (!extensao._deveInterceptar() || this.state > ThumbnailState.NORMAL)
+                    return original.call(this, momento);
+                return extensao._aoClicarMiniatura(this.monitorIndex, this.metaWorkspace.index());
+            });
+
+        this._injecoes.overrideMethod(WorkspaceThumbnail.prototype, '_addWindowClone', original =>
+            function (janela) {
+                const clone = original.call(this, janela);
+                clone.connect('selected', () => extensao._aoClicarJanelaDaMiniatura(clone.metaWindow));
+                return clone;
             });
     }
 
@@ -271,6 +286,20 @@ export default class WorkspacesPorMonitor extends Extension {
         const monitor = monitorDaAcao('ponteiro', this._contexto());
         if (this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config)))
             this._focarTopoDo(monitor);
+    }
+
+    _aoClicarMiniatura(monitor, destino) {
+        if (!this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config)))
+            return;
+        this._focarTopoDo(monitor);
+        Main.overview.hide();
+    }
+
+    _aoClicarJanelaDaMiniatura(janela) {
+        if (!this._deveInterceptar())
+            return;
+        if (janela.located_on_workspace(global.workspace_manager.get_active_workspace()))
+            janela.activate(global.get_current_time());
     }
 
     _aoPedirJanela(destino, janela, momento) {

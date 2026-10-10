@@ -16,6 +16,7 @@ import {
     layoutManager,
     xdndHandler,
 } from './gnome-falso/estado.js';
+import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
 
 const JANELAS = [
@@ -219,4 +220,67 @@ test('desligar devolve os métodos e os atalhos ao GNOME', () => {
     assert.equal(Workspace.prototype.activate_with_focus, ativarComFocoOriginal);
     wm.atalhos.get('switch-to-workspace-right')(null, null, {get_name: () => 'switch-to-workspace-right'});
     assert.deepEqual(estado.atalhosDoShell, ['switch-to-workspace-right']);
+});
+
+function abrirOverview() {
+    estado.overviewAberto = true;
+}
+
+test('um clique na miniatura troca o monitor dela e fecha o Overview', () => {
+    ligar({ponteiro: 1});
+    abrirOverview();
+    new WorkspaceThumbnail(estado.workspaces[3], 0).activate(0);
+    assert.deepEqual(aVista(0), ['x2']);
+    assert.deepEqual(aVista(1), ['y1']);
+    assert.equal(estado.overviewAberto, false);
+    assert.equal(indiceAtivo(), 2);
+});
+
+test('clicar numa janela dentro da miniatura vai para ela e a foca, mesmo com outra por cima', () => {
+    ligar({ponteiro: 0, janelas: [...JANELAS, {id: 'y3', monitor: 1, global: 2}]});
+    abrirOverview();
+    focar('x1');
+    const miniatura = new WorkspaceThumbnail(estado.workspaces[4], 1);
+    miniatura._addWindowClone(janela('y2')).clicar();
+    assert.deepEqual(aVista(1), ['y2', 'y3']);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.foco, janela('y2'));
+    assert.equal(estado.overviewAberto, false);
+});
+
+test('clicar na miniatura do workspace atual só fecha o Overview', () => {
+    ligar();
+    abrirOverview();
+    const movimentos = estado.movimentos;
+    new WorkspaceThumbnail(estado.workspaces[2], 0).activate(0);
+    assert.equal(estado.movimentos, movimentos);
+    assert.equal(estado.overviewAberto, false);
+});
+
+test('miniatura além da ponta não faz nada e o Overview continua aberto', () => {
+    ligar();
+    abrirOverview();
+    const movimentos = estado.movimentos;
+    new WorkspaceThumbnail(estado.workspaces[1], 0).activate(0);
+    assert.equal(estado.movimentos, movimentos);
+    assert.equal(estado.overviewAberto, true);
+});
+
+test('com configuração inválida a miniatura segue o GNOME', () => {
+    ligar({dinamicos: true});
+    abrirOverview();
+    new WorkspaceThumbnail(estado.workspaces[1], 0).activate(0);
+    assert.equal(indiceAtivo(), 1);
+    assert.equal(estado.overviewAberto, true);
+});
+
+test('desligar devolve os métodos originais da miniatura', () => {
+    const ativarOriginal = WorkspaceThumbnail.prototype.activate;
+    const adicionarCloneOriginal = WorkspaceThumbnail.prototype._addWindowClone;
+    ligar();
+    assert.notEqual(WorkspaceThumbnail.prototype.activate, ativarOriginal);
+    extensao.disable();
+    extensao = null;
+    assert.equal(WorkspaceThumbnail.prototype.activate, ativarOriginal);
+    assert.equal(WorkspaceThumbnail.prototype._addWindowClone, adicionarCloneOriginal);
 });

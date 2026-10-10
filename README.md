@@ -56,7 +56,9 @@ anterior e religa o que o instalador desativou.
 |---|---|
 | `Super+PageUp/PageDown`, `Ctrl+Alt+←/→`, atalhos numerados | o da janela em foco (sem foco, o do ponteiro) |
 | `Super+Shift+PageUp/PageDown` (levar a janela junto) | o da janela |
-| Overview: clicar ou rolar nas miniaturas | o do ponteiro |
+| Overview: **um clique** numa miniatura | o daquela miniatura, e o Overview fecha (como no macOS) |
+| Overview: clicar numa janela dentro da miniatura | o dela, que já abre em foco |
+| Overview: rolar sobre as miniaturas | o do ponteiro |
 | Gesto do Magic Mouse (`workspace-switch@local`) | o do ponteiro, sem mudar nada no outro repositório |
 | Alt+Tab, dock e notificação para uma janela de outro workspace | o da janela escolhida |
 
@@ -104,7 +106,8 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
 - [ ] Atalho com o foco no monitor 1 e o ponteiro no 2: só o 1 troca.
 - [ ] Gesto do Magic Mouse: só o monitor do ponteiro troca.
 - [ ] Overview:
-  - clicar numa miniatura;
+  - um clique numa miniatura já entra no workspace;
+  - um clique numa janela dentro da miniatura já abre a janela;
   - arrastar uma janela para uma miniatura;
   - soltar uma janela numa miniatura vazia fora das pontas.
 - [ ] Alt+Tab e dock para uma janela do outro monitor.
