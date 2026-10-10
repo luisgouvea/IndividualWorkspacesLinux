@@ -56,8 +56,11 @@ function ativarPeloMutter(workspace, janela) {
 }
 
 export class JanelaFalsa {
-    constructor({id, monitor, global, tipo = NORMAL, emTodos = false, transitoriaDe = null}) {
+    constructor({id, monitor, global, tipo = NORMAL, emTodos = false, transitoriaDe = null, titulo = '', marcaDoDing = null}) {
         this.id = id;
+        this.titulo = titulo;
+        if (marcaDoDing)
+            this.customJS_ding = marcaDoDing;
         this.monitor = monitor;
         this.workspace = estado.workspaces[global];
         this.tipo = tipo;
@@ -101,6 +104,10 @@ export class JanelaFalsa {
 
     get_id() {
         return this.id;
+    }
+
+    get_title() {
+        return this.titulo;
     }
 
     get_monitor() {
@@ -319,6 +326,13 @@ export function desenhar() {
         estado.laters.delete(id);
         acao();
     }
+}
+
+export function abrirJanela(especificacao) {
+    const nova = new JanelaFalsa(especificacao);
+    estado.janelas.push(nova);
+    nova.workspace.emitir('window-added', nova);
+    return nova;
 }
 
 export function janela(id) {

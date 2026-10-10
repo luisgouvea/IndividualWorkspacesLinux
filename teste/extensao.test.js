@@ -16,6 +16,7 @@ import {
     layoutManager,
     xdndHandler,
     gerenciadorDeJanelas,
+    abrirJanela,
 } from './gnome-falso/estado.js';
 import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
@@ -540,4 +541,33 @@ test('buraco atrás do workspace à vista some sem mudar o que se vê nem roubar
     focar('x3');
     apertar('switch-to-workspace-left');
     assert.deepEqual(aVista(0), ['x1']);
+});
+
+test('a janela da área de trabalho (DING) nunca é movida nem focada, mesmo antes de o DING reconhecê-la', () => {
+    ligar();
+    abrirJanela({id: 'ding', monitor: 0, global: 2, titulo: 'Desktop Icons 1'});
+    abrirJanela({id: 'ding-marcada', monitor: 0, global: 2, marcaDoDing: {}});
+    desenhar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    desenhar();
+    assert.equal(janela('ding').get_workspace(), estado.workspaces[2]);
+    assert.equal(janela('ding-marcada').get_workspace(), estado.workspaces[2]);
+    assert.deepEqual(aVista(0), ['ding', 'ding-marcada', 'x2']);
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['ding', 'ding-marcada']);
+    assert.notEqual(estado.foco, janela('ding'));
+    assert.notEqual(estado.foco, janela('ding-marcada'));
+});
+
+test('a janela do DING não conta como ocupante de workspace', () => {
+    ligar({janelas: [{id: 'x1', monitor: 0, global: 0}, {id: 'y1', monitor: 1, global: 0}]});
+    abrirJanela({id: 'ding', monitor: 0, global: 2, titulo: 'Desktop Icons 1'});
+    desenhar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['ding']);
+    const movimentos = estado.movimentos;
+    apertar('switch-to-workspace-right');
+    assert.equal(estado.movimentos, movimentos);
 });

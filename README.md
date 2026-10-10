@@ -110,6 +110,10 @@ reordena os workspaces e bagunça o outro monitor. O instalador a desliga.
 
 ## Limitações
 
+- A janela dos ícones da área de trabalho (Desktop Icons NG, que aparece como
+  "gjs") nunca é movida. O DING precisa que ela apareça logo depois de criada:
+  se ela sai da tela antes de ele reconhecê-la, ele mata e relança o processo
+  a cada 6 s, e um ícone "gjs" fica abrindo e fechando no dock.
 - O indicador de workspaces do GNOME (os pontinhos do Activities) mostra sempre
   o do meio.
 - Nas miniaturas aparecem workspaces vazios além das pontas. Uma janela solta

@@ -26,6 +26,7 @@ import {
 } from './nucleo.js';
 
 const PREFIXO = '[workspaces-por-monitor]';
+const TITULO_DA_AREA_DE_TRABALHO = 'Desktop Icons ';
 const MODOS_DOS_ATALHOS = Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW;
 const ALVOS_DOS_ATALHOS = ['left', 'right', 'up', 'down', 'last',
     ...Array.from({length: 12}, (_, i) => String(i + 1))];
@@ -243,7 +244,13 @@ export default class WorkspacesPorMonitor extends Extension {
             janela.get_window_type() === Meta.WindowType.NORMAL &&
             !janela.is_on_all_workspaces() &&
             !janela.get_transient_for() &&
+            !this._ehDaAreaDeTrabalho(janela) &&
             janela.get_workspace() !== null;
+    }
+
+    _ehDaAreaDeTrabalho(janela) {
+        return Boolean(janela.customJS_ding) ||
+            (janela.get_title() ?? '').startsWith(TITULO_DA_AREA_DE_TRABALHO);
     }
 
     _estaAVista(janela) {
