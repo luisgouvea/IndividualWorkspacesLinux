@@ -1,0 +1,8 @@
+{
+  "name": "workspaces-por-monitor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
