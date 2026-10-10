@@ -62,6 +62,27 @@ anterior e religa o que o instalador desativou.
 | Gesto do Magic Mouse (`workspace-switch@local`) | o do ponteiro, sem mudar nada no outro repositório |
 | Alt+Tab, dock e notificação para uma janela de outro workspace | o da janela escolhida |
 
+## Maximizar
+
+Como a tela cheia do macOS, mas só para **maximizar** (botão, duplo clique no
+título ou `Super+↑`).
+
+- **Para onde a janela vai:** para o **próximo workspace vazio à direita, só
+  naquele monitor**, que passa a mostrá-la sozinha. Sem vaga à direita, usa a
+  mais próxima à esquerda. Sem vaga nenhuma, maximiza no lugar.
+- **Desmaximizar:** a janela volta ao workspace de onde veio, e o monitor vai
+  junto.
+- **Fechar a janela:** se o workspace dela ficar vazio, o monitor volta ao
+  workspace de origem.
+- **O que não muda:** janela que já está sozinha maximiza no lugar. Tela
+  cheia (F11, vídeo) e meia tela (`Super+←/→`) também não saem do lugar.
+
+Com 3 workspaces por monitor, a vaga acaba rápido. `POR_MONITOR=4 ./instalar.sh`
+dá mais espaço.
+
+A extensão "Maximize Window Into New Workspace" conflita com esta: ela
+reordena os workspaces e bagunça o outro monitor. O instalador a desliga.
+
 ## Limitações
 
 - O indicador de workspaces do GNOME (os pontinhos do Activities) mostra sempre
@@ -112,6 +133,10 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
   - soltar uma janela numa miniatura vazia fora das pontas.
 - [ ] Alt+Tab e dock para uma janela do outro monitor.
 - [ ] `Super+Shift+PageDown` leva a janela junto.
+- [ ] Maximizar uma janela que divide o workspace com outra: ela vai sozinha
+      para o vazio à direita, só naquele monitor.
+- [ ] Desmaximizar volta; fechar a janela também volta.
+- [ ] F11 e `Super+←` não movem a janela.
 - [ ] No WS1 e no WS3, o atalho para.
 - [ ] Arrastar uma janela de um monitor para o outro.
 - [ ] Bloquear a tela, suspender e retomar, desconectar o monitor 2.

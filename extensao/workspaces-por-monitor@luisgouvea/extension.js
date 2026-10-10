@@ -12,6 +12,8 @@ import {
     planejarInicio,
     planejarTroca,
     planejarLevarJanela,
+    planejarMaximizar,
+    planejarVoltaAoFechar,
     deltaParaGlobal,
     deltaParaJanela,
     deltaParaAtalho,
@@ -34,6 +36,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._avisado = false;
         this._agendados = new Map();
         this._workspacesObservados = [];
+        this._origens = new Map();
 
         this._injecoes = new InjectionManager();
         this._injetar();
@@ -50,6 +53,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._cancelarAgendados();
         this._config = null;
         this._visiveis = null;
+        this._origens = null;
     }
 
     _injetar() {
@@ -113,6 +117,10 @@ export default class WorkspacesPorMonitor extends Extension {
         Main.layoutManager.connectObject(
             'monitors-changed', () => this._agendar('reiniciar', () => this._iniciar()),
             this);
+        global.window_manager.connectObject(
+            'size-change', (_wm, ator, mudanca) => this._aoMudarTamanho(ator, mudanca),
+            'destroy', (_wm, ator) => this._aoDestruir(ator),
+            this);
         Main.xdndHandler.connectObject(
             'drag-begin', () => (this._arrastandoArquivo = true),
             'drag-end', () => (this._arrastandoArquivo = false),
@@ -125,6 +133,7 @@ export default class WorkspacesPorMonitor extends Extension {
         global.workspace_manager.disconnectObject(this);
         global.display.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        global.window_manager.disconnectObject(this);
         Main.xdndHandler.disconnectObject(this);
         this._soltarWorkspaces();
     }
@@ -198,6 +207,7 @@ export default class WorkspacesPorMonitor extends Extension {
             return;
         const ativo = global.workspace_manager.get_active_workspace_index();
         const descritas = this._descrever(this._janelasMoveis());
+        this._origens.clear();
         const plano = planejarInicio(descritas, ativo, this._config, {
             monitores: Main.layoutManager.monitors.map(m => m.index),
             preferidos: this._visiveis,
@@ -210,12 +220,21 @@ export default class WorkspacesPorMonitor extends Extension {
 
     _janelasMoveis() {
         return global.get_window_actors()
+            .filter(ator => !ator.is_destroyed())
             .map(ator => ator.get_meta_window())
-            .filter(janela => janela &&
-                janela.get_window_type() === Meta.WindowType.NORMAL &&
-                !janela.is_on_all_workspaces() &&
-                !janela.get_transient_for() &&
-                janela.get_workspace() !== null);
+            .filter(janela => this._ehMovel(janela));
+    }
+
+    _ehMovel(janela) {
+        return Boolean(janela) &&
+            janela.get_window_type() === Meta.WindowType.NORMAL &&
+            !janela.is_on_all_workspaces() &&
+            !janela.get_transient_for() &&
+            janela.get_workspace() !== null;
+    }
+
+    _estaAVista(janela) {
+        return janela.located_on_workspace(global.workspace_manager.get_active_workspace());
     }
 
     _descrever(janelas) {
@@ -344,6 +363,81 @@ export default class WorkspacesPorMonitor extends Extension {
         this._aplicar(plano.movimentos, descritas);
         this._visiveis[monitor] = plano.visivel;
         janela.activate(global.get_current_time());
+    }
+
+    _aoMudarTamanho(ator, mudanca) {
+        const janela = ator.get_meta_window();
+        if (!janela)
+            return;
+        const id = janela.get_id();
+        if (mudanca === Meta.SizeChange.MAXIMIZE)
+            this._agendar(`maximizar:${id}`, () => this._aoMaximizar(janela));
+        else if (mudanca === Meta.SizeChange.UNMAXIMIZE)
+            this._agendar(`desmaximizar:${id}`, () => this._aoDesmaximizar(janela));
+    }
+
+    _aoDestruir(ator) {
+        const id = ator.get_meta_window()?.get_id();
+        if (this._origens.has(id))
+            this._agendar(`fechar:${id}`, () => this._aoFechar(id));
+    }
+
+    _aoMaximizar(janela) {
+        if (!this._deveInterceptar() || !this._ehMovel(janela) || !this._estaAVista(janela))
+            return;
+        if (janela.get_maximized() !== Meta.MaximizeFlags.BOTH)
+            return;
+
+        const monitor = janela.get_monitor();
+        const descritas = this._doMonitor(monitor);
+        const plano = planejarMaximizar(descritas, janela.get_id(), this._visivel(monitor), this._config);
+        if (plano === null)
+            return;
+
+        this._aplicar(plano.movimentos, descritas);
+        this._visiveis[monitor] = plano.visivel;
+        this._origens.set(janela.get_id(), {monitor, origem: plano.origem, destino: plano.visivel});
+        janela.activate(global.get_current_time());
+    }
+
+    _aoDesmaximizar(janela) {
+        const id = janela.get_id();
+        const lembrada = this._origens.get(id);
+        if (!lembrada)
+            return;
+        this._origens.delete(id);
+        if (!this._deveInterceptar() || janela.get_monitor() !== lembrada.monitor || !this._estaAVista(janela))
+            return;
+
+        const {monitor, origem} = lembrada;
+        const visivel = this._visivel(monitor);
+        const descritas = this._doMonitor(monitor);
+        const plano = planejarLevarJanela(descritas, id, visivel, origem - visivel, this._config);
+        if (plano === null)
+            return;
+
+        this._aplicar(plano.movimentos, descritas);
+        this._visiveis[monitor] = plano.visivel;
+        janela.activate(global.get_current_time());
+    }
+
+    _aoFechar(id) {
+        const lembrada = this._origens.get(id);
+        if (!lembrada)
+            return;
+        this._origens.delete(id);
+        if (!this._deveInterceptar())
+            return;
+
+        const {monitor, origem, destino} = lembrada;
+        const descritas = this._doMonitor(monitor);
+        const plano = planejarVoltaAoFechar(descritas, this._visivel(monitor), destino, origem, this._config);
+        if (plano === null)
+            return;
+
+        this._aplicar(plano.movimentos, descritas);
+        this._visiveis[monitor] = plano.visivel;
+        this._focarTopoDo(monitor);
     }
 
     _aoTrocarGlobal() {

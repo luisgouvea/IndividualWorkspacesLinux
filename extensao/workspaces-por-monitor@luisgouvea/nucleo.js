@@ -83,6 +83,47 @@ export function planejarLevarJanela(janelas, id, visivel, delta, config) {
     return plano;
 }
 
+function primeiroVazio(ocupados, origem, config) {
+    for (let virtual = origem + 1; virtual <= config.porMonitor; virtual++) {
+        if (!ocupados.has(virtual))
+            return virtual;
+    }
+    for (let virtual = origem - 1; virtual >= 1; virtual--) {
+        if (!ocupados.has(virtual))
+            return virtual;
+    }
+    return null;
+}
+
+export function planejarMaximizar(janelas, id, visivel, config) {
+    const maximizada = janelas.find(j => j.id === id);
+    if (!maximizada)
+        return null;
+
+    const virtualDe = janela => virtualLimitado(janela.global, config.centro, visivel, config);
+    const origem = virtualDe(maximizada);
+    const ocupados = new Set(janelas.filter(j => j.id !== id).map(virtualDe));
+    if (!ocupados.has(origem))
+        return null;
+
+    const destino = primeiroVazio(ocupados, origem, config);
+    if (destino === null)
+        return null;
+
+    const plano = planejarLevarJanela(janelas, id, visivel, destino - visivel, config);
+    return plano && {...plano, origem};
+}
+
+export function planejarVoltaAoFechar(janelas, visivel, destino, origem, config) {
+    if (visivel !== destino)
+        return null;
+    const ocupado = janelas.some(j =>
+        virtualLimitado(j.global, config.centro, visivel, config) === visivel);
+    if (ocupado)
+        return null;
+    return planejarTroca(janelas, visivel, origem - visivel, config);
+}
+
 export function deltaParaGlobal(global, config) {
     return global - config.centro;
 }

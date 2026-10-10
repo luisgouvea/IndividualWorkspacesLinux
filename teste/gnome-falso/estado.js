@@ -64,6 +64,38 @@ export class JanelaFalsa {
         this.emTodos = emTodos;
         this.transitoriaDe = transitoriaDe;
         this.minimized = false;
+        this.maximizado = 0;
+        this.destruida = false;
+    }
+
+    get_maximized() {
+        return this.maximizado;
+    }
+
+    mudarTamanho(maximizado, mudanca) {
+        this.maximizado = maximizado;
+        gerenciadorDeJanelas.emitir('size-change', ator(this), mudanca);
+    }
+
+    maximizar() {
+        this.mudarTamanho(Meta.MaximizeFlags.BOTH, Meta.SizeChange.MAXIMIZE);
+    }
+
+    maximizarSoNaVertical() {
+        this.mudarTamanho(Meta.MaximizeFlags.VERTICAL, Meta.SizeChange.MAXIMIZE);
+    }
+
+    telaCheia() {
+        gerenciadorDeJanelas.emitir('size-change', ator(this), Meta.SizeChange.FULLSCREEN);
+    }
+
+    desmaximizar() {
+        this.mudarTamanho(0, Meta.SizeChange.UNMAXIMIZE);
+    }
+
+    fechar() {
+        this.destruida = true;
+        gerenciadorDeJanelas.emitir('destroy', ator(this));
     }
 
     get_id() {
@@ -155,6 +187,11 @@ class GerenciadorDeLayout extends Sinais {
 }
 
 const workspaceManager = new GerenciadorDeWorkspaces();
+const gerenciadorDeJanelas = new Sinais();
+
+function ator(janela) {
+    return {get_meta_window: () => janela, is_destroyed: () => janela.destruida};
+}
 const display = new Tela();
 
 const laters = {
@@ -172,13 +209,16 @@ globalThis.global = {
     workspace_manager: workspaceManager,
     display,
     compositor: {get_laters: () => laters},
-    get_window_actors: () => estado.janelas.map(j => ({get_meta_window: () => j})),
+    window_manager: gerenciadorDeJanelas,
+    get_window_actors: () => estado.janelas.map(ator),
     get_current_time: () => 0,
 };
 
 export const Meta = {
     WindowType: {NORMAL, DIALOG: 3},
     LaterType: {BEFORE_REDRAW: 3},
+    SizeChange: {MAXIMIZE: 0, UNMAXIMIZE: 1, FULLSCREEN: 2, UNFULLSCREEN: 3},
+    MaximizeFlags: {HORIZONTAL: 1, VERTICAL: 2, BOTH: 3},
     Workspace,
     prefs_get_dynamic_workspaces: () => estado.dinamicos,
     prefs_get_workspaces_only_on_primary: () => estado.apenasNoPrincipal,
@@ -241,7 +281,7 @@ export function montarCenario({
     ponteiro = 0,
     janelas = [],
 } = {}) {
-    for (const objeto of [workspaceManager, display, layoutManager, xdndHandler])
+    for (const objeto of [workspaceManager, display, layoutManager, xdndHandler, gerenciadorDeJanelas])
         objeto._ligacoes = [];
     wm.atalhos.clear();
 
@@ -291,7 +331,7 @@ export function apertar(nome) {
 
 export function aVista(monitor) {
     return estado.janelas
-        .filter(j => j.monitor === monitor && j.located_on_workspace(estado.ativo))
+        .filter(j => !j.destruida && j.monitor === monitor && j.located_on_workspace(estado.ativo))
         .map(j => j.id)
         .sort();
 }
@@ -300,4 +340,4 @@ export function indiceAtivo() {
     return estado.workspaces.indexOf(estado.ativo);
 }
 
-export {Sinais, Workspace, ativarPeloMutter, workspaceManager};
+export {Sinais, Workspace, ativarPeloMutter, workspaceManager, gerenciadorDeJanelas};

@@ -15,6 +15,7 @@ import {
     wm,
     layoutManager,
     xdndHandler,
+    gerenciadorDeJanelas,
 } from './gnome-falso/estado.js';
 import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
@@ -283,4 +284,92 @@ test('desligar devolve os métodos originais da miniatura', () => {
     extensao = null;
     assert.equal(WorkspaceThumbnail.prototype.activate, ativarOriginal);
     assert.equal(WorkspaceThumbnail.prototype._addWindowClone, adicionarCloneOriginal);
+});
+
+const DIVIDINDO_O_WS1 = [
+    {id: 'x1', monitor: 0, global: 0},
+    {id: 'x1b', monitor: 0, global: 0},
+    {id: 'y1', monitor: 1, global: 0},
+];
+
+test('maximizar leva a janela, sozinha, ao workspace vazio à direita só daquele monitor', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.deepEqual(aVista(1), ['y1']);
+    assert.equal(estado.foco, janela('x1'));
+    assert.equal(indiceAtivo(), 2);
+});
+
+test('desmaximizar devolve a janela ao workspace de origem, e o monitor vai junto', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    janela('x1').desmaximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1', 'x1b']);
+    assert.deepEqual(aVista(1), ['y1']);
+});
+
+test('fechar a janela maximizada devolve o monitor ao workspace de origem', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    janela('x1').maximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    janela('x1').fechar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1b']);
+    assert.deepEqual(aVista(1), ['y1']);
+});
+
+test('sem workspace vazio no monitor, maximiza no lugar', () => {
+    ligar({
+        janelas: [
+            ...DIVIDINDO_O_WS1,
+            {id: 'x2', monitor: 0, global: 1},
+            {id: 'x3', monitor: 0, global: 2},
+        ],
+    });
+    const movimentos = estado.movimentos;
+    janela('x1').maximizar();
+    desenhar();
+    assert.equal(estado.movimentos, movimentos);
+    assert.deepEqual(aVista(0), ['x1', 'x1b']);
+});
+
+test('meia tela e tela cheia não levam a janela a lugar nenhum', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    const movimentos = estado.movimentos;
+    janela('x1').maximizarSoNaVertical();
+    janela('x1b').telaCheia();
+    desenhar();
+    assert.equal(estado.movimentos, movimentos);
+    assert.deepEqual(aVista(0), ['x1', 'x1b']);
+});
+
+test('janela que já está sozinha maximiza no lugar', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    const movimentos = estado.movimentos;
+    janela('y1').maximizar();
+    desenhar();
+    assert.equal(estado.movimentos, movimentos);
+    assert.deepEqual(aVista(1), ['y1']);
+});
+
+test('janela fora de vista que se maximiza sozinha não arrasta o monitor', () => {
+    ligar({janelas: [...DIVIDINDO_O_WS1, {id: 'x2', monitor: 0, global: 1}, {id: 'x2b', monitor: 0, global: 1}]});
+    const movimentos = estado.movimentos;
+    janela('x2').maximizar();
+    desenhar();
+    assert.equal(estado.movimentos, movimentos);
+    assert.deepEqual(aVista(0), ['x1', 'x1b']);
+});
+
+test('desligar solta os sinais de maximizar e fechar', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    extensao.disable();
+    extensao = null;
+    assert.equal(gerenciadorDeJanelas._ligacoes.length, 0);
 });
