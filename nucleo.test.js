@@ -9,7 +9,10 @@ import {
     planejarLevarJanela,
     planejarMaximizar,
     planejarDesmaximizar,
-    planejarFechamento,
+    planejarArrumacao,
+    posicaoAposArrumacao,
+    ultimoNavegavel,
+    planejarNavegacao,
     deslocar,
     deltaParaGlobal,
     deltaParaJanela,
@@ -336,36 +339,6 @@ test('o empurrão anda em cascata até o primeiro vazio', () => {
     assert.deepEqual(plano.movimentos, [{id: 'outra', global: 2}]);
 });
 
-test('sem vazio à direita, empurra para a esquerda e a janela fica à vista', () => {
-    const janelas = [
-        {id: 'max', global: 2},
-        {id: 'outra', global: 2},
-        {id: 'no-ws1', global: 0},
-    ];
-    assert.deepEqual(planejarMaximizar(janelas, 'max', 3, CINCO), {
-        visivel: 3,
-        origem: 2,
-        destino: 3,
-        deslocamento: {de: 3, ate: 3, passo: -1},
-        movimentos: [{id: 'outra', global: 1}],
-    });
-});
-
-test('o empurrão para a esquerda também anda em cascata', () => {
-    const janelas = [
-        {id: 'max', global: 2},
-        {id: 'outra', global: 2},
-        {id: 'no-ws2', global: 1},
-    ];
-    const plano = planejarMaximizar(janelas, 'max', 3, CINCO);
-    assert.deepEqual(plano.deslocamento, {de: 2, ate: 3, passo: -1});
-    assert.equal(plano.origem, 2);
-    assert.deepEqual(plano.movimentos, [
-        {id: 'outra', global: 1},
-        {id: 'no-ws2', global: 0},
-    ]);
-});
-
 test('sem nenhum vazio, maximizar não move nada', () => {
     const janelas = [
         {id: 'max', global: 2},
@@ -418,31 +391,126 @@ test('desmaximizar quem já está na origem não faz nada', () => {
     assert.equal(planejarDesmaximizar(janelas, 'max', 1, 1, CINCO), null);
 });
 
-test('fechar a maximizada estando nela volta à origem e o workspace some', () => {
+test('sem vazio à direita, maximiza no lugar', () => {
     const janelas = [
-        {id: 'outra', global: 1},
-        {id: 'empurrada', global: 3},
+        {id: 'max', global: 2},
+        {id: 'outra', global: 2},
+        {id: 'no-ws1', global: 0},
     ];
-    assert.deepEqual(planejarFechamento(janelas, 2, {origem: 1, destino: 2}, CINCO), {
+    assert.equal(planejarMaximizar(janelas, 'max', 3, CINCO), null);
+});
+
+test('arrumar: o buraco no meio some e o da direita anda uma posição', () => {
+    const janelas = [
+        {id: 'a', global: 2},
+        {id: 'c', global: 4},
+    ];
+    assert.deepEqual(planejarArrumacao(janelas, 1, CINCO, {ocupadosAntes: new Set([1, 3])}), {
         visivel: 1,
-        deslocamento: {de: 3, ate: 3, passo: -1},
-        movimentos: [{id: 'outra', global: 2}],
+        ocupados: [1, 3],
+        movimentos: [{id: 'c', global: 3}],
     });
 });
 
-test('fechar a maximizada estando em outro workspace não muda o que está à vista', () => {
+test('arrumar: o workspace que esvaziou na sua frente dá lugar ao da direita', () => {
     const janelas = [
-        {id: 'outra', global: 0},
-        {id: 'a-vista', global: 2},
+        {id: 'a', global: 1},
+        {id: 'c', global: 3},
     ];
-    assert.deepEqual(planejarFechamento(janelas, 3, {origem: 1, destino: 2}, CINCO), {
+    assert.deepEqual(planejarArrumacao(janelas, 2, CINCO, {ocupadosAntes: new Set([1, 2, 3])}), {
         visivel: 2,
-        deslocamento: {de: 3, ate: 3, passo: -1},
-        movimentos: [{id: 'outra', global: 1}],
+        ocupados: [1, 3],
+        movimentos: [{id: 'c', global: 2}],
     });
 });
 
-test('fechar com o destino ainda ocupado não faz nada', () => {
-    const janelas = [{id: 'chegou-depois', global: 2}];
-    assert.equal(planejarFechamento(janelas, 2, {origem: 1, destino: 2}, CINCO), null);
+test('arrumar: se o que esvaziou era o último, vai para o da esquerda', () => {
+    const janelas = [
+        {id: 'a', global: 0},
+        {id: 'b', global: 1},
+    ];
+    assert.deepEqual(planejarArrumacao(janelas, 3, CINCO, {ocupadosAntes: new Set([1, 2, 3])}), {
+        visivel: 2,
+        ocupados: [1, 2],
+        movimentos: [
+            {id: 'a', global: 1},
+            {id: 'b', global: 2},
+        ],
+    });
+});
+
+test('arrumar: o vazio do fim escolhido de propósito continua', () => {
+    const janelas = [
+        {id: 'a', global: 0},
+        {id: 'b', global: 1},
+    ];
+    assert.equal(planejarArrumacao(janelas, 3, CINCO, {ocupadosAntes: new Set([1, 2])}), null);
+});
+
+test('arrumar: quem está além do vazio do fim volta para ele', () => {
+    const janelas = [{id: 'a', global: 0}];
+    assert.deepEqual(planejarArrumacao(janelas, 3, CINCO, {ocupadosAntes: new Set([1])}), {
+        visivel: 2,
+        ocupados: [1],
+        movimentos: [{id: 'a', global: 1}],
+    });
+});
+
+test('arrumar: janela maximizada fechada devolve o monitor à origem', () => {
+    const janelas = [
+        {id: 'a', global: 1},
+        {id: 'c', global: 3},
+    ];
+    const plano = planejarArrumacao(janelas, 2, CINCO, {
+        ocupadosAntes: new Set([1, 2, 3]),
+        lembradas: [{origem: 1, destino: 2}],
+    });
+    assert.deepEqual(plano, {
+        visivel: 1,
+        ocupados: [1, 3],
+        movimentos: [{id: 'a', global: 2}],
+    });
+});
+
+test('arrumar: sem janelas, o monitor volta ao primeiro', () => {
+    assert.deepEqual(planejarArrumacao([], 2, CINCO, {ocupadosAntes: new Set([2])}), {
+        visivel: 1,
+        ocupados: [],
+        movimentos: [],
+    });
+});
+
+test('arrumar: janela além das pontas entra no workspace mais próximo', () => {
+    const janelas = [
+        {id: 'a', global: 2},
+        {id: 'fora', global: 0},
+    ];
+    assert.deepEqual(planejarArrumacao(janelas, 1, CINCO, {ocupadosAntes: new Set([1])}), {
+        visivel: 1,
+        ocupados: [1],
+        movimentos: [{id: 'fora', global: 2}],
+    });
+});
+
+test('a posição depois de arrumar conta os ocupados até ali', () => {
+    const ocupados = [1, 3];
+    assert.equal(posicaoAposArrumacao(0, ocupados), 1);
+    assert.equal(posicaoAposArrumacao(1, ocupados), 1);
+    assert.equal(posicaoAposArrumacao(2, ocupados), 1);
+    assert.equal(posicaoAposArrumacao(3, ocupados), 2);
+});
+
+test('a navegação vai até um vazio depois do último ocupado', () => {
+    assert.equal(ultimoNavegavel([{id: 'a', global: 2}, {id: 'b', global: 3}], 1, CINCO), 3);
+    assert.equal(ultimoNavegavel([{id: 'a', global: 2}], 1, CINCO), 2);
+    assert.equal(ultimoNavegavel([], 1, CINCO), 1);
+    assert.equal(ultimoNavegavel([{id: 'a', global: 4}], 1, CINCO), 3);
+});
+
+test('navegar até o vazio do fim é permitido, além dele não', () => {
+    assert.deepEqual(planejarNavegacao([{id: 'a', global: 2}], 1, 1, CINCO), {
+        visivel: 2,
+        movimentos: [{id: 'a', global: 1}],
+    });
+    assert.equal(planejarNavegacao([{id: 'a', global: 1}], 2, 1, CINCO), null);
 });

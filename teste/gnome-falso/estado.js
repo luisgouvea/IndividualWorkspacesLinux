@@ -96,6 +96,7 @@ export class JanelaFalsa {
     fechar() {
         this.destruida = true;
         gerenciadorDeJanelas.emitir('destroy', ator(this));
+        this.workspace.emitir('window-removed', this);
     }
 
     get_id() {
@@ -130,8 +131,10 @@ export class JanelaFalsa {
         const destino = estado.workspaces[indice];
         if (destino === this.workspace)
             return;
+        const origem = this.workspace;
         this.workspace = destino;
         estado.movimentos += 1;
+        origem.emitir('window-removed', this);
         destino.emitir('window-added', this);
     }
 
@@ -143,6 +146,7 @@ export class JanelaFalsa {
     }
 
     moverParaMonitor(monitor) {
+        display.emitir('window-left-monitor', this.monitor, this);
         this.monitor = monitor;
         display.emitir('window-entered-monitor', monitor, this);
     }

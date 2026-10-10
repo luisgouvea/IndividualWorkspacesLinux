@@ -62,6 +62,27 @@ anterior e religa o que o instalador desativou.
 | Gesto do Magic Mouse (`workspace-switch@local`) | o do ponteiro, sem mudar nada no outro repositório |
 | Alt+Tab, dock e notificação para uma janela de outro workspace | o da janela escolhida |
 
+## Workspaces dinâmicos por monitor
+
+Cada monitor arruma a própria fila sozinho, no espírito dos workspaces
+dinâmicos do GNOME:
+
+- **Workspace que fica vazio some na hora**, e os da direita andam uma
+  posição. Isso vale para fechar a última janela, mandá-la para outro monitor
+  ou movê-la de workspace.
+  - Se ele esvaziou na sua frente, o da direita entra no lugar. Exemplo: você
+    está no WS2 e fecha a última janela dele; o antigo WS3 passa a ser o WS2,
+    à vista.
+  - Se era o último ocupado, você vai para o da esquerda.
+  - Se o buraco ficou atrás de você, o que está à vista não muda, e o foco
+    também não.
+- **Sempre há um vazio no fim**, para abrir coisa nova. A navegação para a
+  direita (atalho, gesto, miniatura) para nele.
+
+O modo dinâmico nativo do GNOME não pode ser ligado, porque ele mexe nos
+workspaces de todos os monitores juntos. Ele também nunca remove o workspace
+em que você está; esta extensão remove na hora.
+
 ## Maximizar
 
 Como a tela cheia do macOS, mas só para **maximizar** (botão, duplo clique no
@@ -71,12 +92,8 @@ título ou `Super+↑`).
   só naquele monitor. Os workspaces ocupados que estavam ali são **empurrados**
   uma posição para a direita. Exemplo: WS1 = A+B, WS2 = C, WS3 vazio.
   Maximizar A deixa WS1 = B, WS2 = A e WS3 = C.
-- **Limite:** cada monitor tem um número fixo de workspaces, então o empurrão
-  precisa de um workspace vazio em algum lugar à direita para absorvê-lo.
-  - Sem vazio à direita, o empurrão vai para a esquerda: o workspace atual
-    anda uma posição para a esquerda, e a janela continua à vista logo depois
-    dele.
-  - Sem nenhum vazio, maximiza no lugar.
+- **Limite:** cada monitor tem um número fixo de workspaces. O empurrão usa o
+  vazio do fim; se todos estiverem ocupados, maximiza no lugar.
 - **Desmaximizar ou fechar:** o workspace da janela **some** e os da direita
   voltam uma posição, como no macOS.
   - Ao desmaximizar, a janela volta ao workspace de onde veio, e o monitor vai
@@ -145,6 +162,8 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
       janela sozinha no WS2 e empurra a do WS2 para o WS3, só naquele monitor.
 - [ ] Desmaximizar desfaz o empurrão (a ordem volta); fechar também.
 - [ ] F11 e `Super+←` não movem a janela.
-- [ ] No WS1 e no WS3, o atalho para.
+- [ ] No WS1 e no vazio do fim, o atalho para.
+- [ ] Com WS1, WS2 e WS3 ocupados, estando no WS2, fechar a última janela dele:
+      o antigo WS3 entra no lugar. Fechar a do último leva ao da esquerda.
 - [ ] Arrastar uma janela de um monitor para o outro.
 - [ ] Bloquear a tela, suspender e retomar, desconectar o monitor 2.

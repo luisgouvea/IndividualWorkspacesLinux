@@ -14,7 +14,10 @@ import {
     planejarLevarJanela,
     planejarMaximizar,
     planejarDesmaximizar,
-    planejarFechamento,
+    planejarArrumacao,
+    planejarNavegacao,
+    posicaoAposArrumacao,
+    virtuaisOcupados,
     deslocar,
     deltaParaGlobal,
     deltaParaJanela,
@@ -39,6 +42,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._agendados = new Map();
         this._workspacesObservados = [];
         this._origens = new Map();
+        this._ocupacoes = {};
 
         this._injecoes = new InjectionManager();
         this._injetar();
@@ -114,14 +118,14 @@ export default class WorkspacesPorMonitor extends Extension {
             'active-workspace-changed', () => this._aoTrocarGlobal(),
             this);
         global.display.connectObject(
-            'window-entered-monitor', () => this._agendar('normalizar', () => this._normalizar()),
+            'window-entered-monitor', () => this._agendarArrumacao(),
+            'window-left-monitor', () => this._agendarArrumacao(),
             this);
         Main.layoutManager.connectObject(
             'monitors-changed', () => this._agendar('reiniciar', () => this._iniciar()),
             this);
         global.window_manager.connectObject(
             'size-change', (_wm, ator, mudanca) => this._aoMudarTamanho(ator, mudanca),
-            'destroy', (_wm, ator) => this._aoDestruir(ator),
             this);
         Main.xdndHandler.connectObject(
             'drag-begin', () => (this._arrastandoArquivo = true),
@@ -146,7 +150,8 @@ export default class WorkspacesPorMonitor extends Extension {
         for (let i = 0; i < gerenciador.get_n_workspaces(); i++) {
             const workspace = gerenciador.get_workspace_by_index(i);
             workspace.connectObject(
-                'window-added', () => this._agendar('normalizar', () => this._normalizar()),
+                'window-added', () => this._agendarArrumacao(),
+                'window-removed', () => this._agendarArrumacao(),
                 this);
             this._workspacesObservados.push(workspace);
         }
@@ -167,6 +172,10 @@ export default class WorkspacesPorMonitor extends Extension {
             return GLib.SOURCE_REMOVE;
         });
         this._agendados.set(chave, id);
+    }
+
+    _agendarArrumacao() {
+        this._agendar('arrumar', () => this._arrumar());
     }
 
     _cancelarAgendados() {
@@ -216,8 +225,10 @@ export default class WorkspacesPorMonitor extends Extension {
         });
         this._aplicar(plano.movimentos, descritas);
         this._visiveis = plano.visiveis;
+        this._ocupacoes = {};
         if (ativo !== this._config.centro)
             this._voltarAoCentro();
+        this._arrumar();
     }
 
     _janelasMoveis() {
@@ -270,9 +281,9 @@ export default class WorkspacesPorMonitor extends Extension {
         };
     }
 
-    _trocarNoMonitor(monitor, delta) {
+    _trocarNoMonitor(monitor, delta, planejar = planejarTroca) {
         const descritas = this._doMonitor(monitor);
-        const plano = planejarTroca(descritas, this._visivel(monitor), delta, this._config);
+        const plano = planejar(descritas, this._visivel(monitor), delta, this._config);
         if (plano === null)
             return false;
         this._aplicar(plano.movimentos, descritas);
@@ -305,12 +316,12 @@ export default class WorkspacesPorMonitor extends Extension {
         if (this._arrastandoArquivo)
             return;
         const monitor = monitorDaAcao('ponteiro', this._contexto());
-        if (this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config)))
+        if (this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config), planejarNavegacao))
             this._focarTopoDo(monitor);
     }
 
     _aoClicarMiniatura(monitor, destino) {
-        if (!this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config)))
+        if (!this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config), planejarNavegacao))
             return;
         this._focarTopoDo(monitor);
         Main.overview.hide();
@@ -345,7 +356,7 @@ export default class WorkspacesPorMonitor extends Extension {
 
         const monitor = monitorDaAcao('teclado', this._contexto());
         const delta = deltaParaAtalho(alvo, this._visivel(monitor), this._config);
-        if (delta !== 0 && this._trocarNoMonitor(monitor, delta))
+        if (delta !== 0 && this._trocarNoMonitor(monitor, delta, planejarNavegacao))
             this._focarTopoDo(monitor);
     }
 
@@ -364,6 +375,7 @@ export default class WorkspacesPorMonitor extends Extension {
 
         this._aplicar(plano.movimentos, descritas);
         this._visiveis[monitor] = plano.visivel;
+        this._fotografar(monitor);
         janela.activate(global.get_current_time());
     }
 
@@ -376,12 +388,6 @@ export default class WorkspacesPorMonitor extends Extension {
             this._agendar(`maximizar:${id}`, () => this._aoMaximizar(janela));
         else if (mudanca === Meta.SizeChange.UNMAXIMIZE)
             this._agendar(`desmaximizar:${id}`, () => this._aoDesmaximizar(janela));
-    }
-
-    _aoDestruir(ator) {
-        const id = ator.get_meta_window()?.get_id();
-        if (this._origens.has(id))
-            this._agendar(`fechar:${id}`, () => this._aoFechar(id));
     }
 
     _aoMaximizar(janela) {
@@ -420,36 +426,54 @@ export default class WorkspacesPorMonitor extends Extension {
         janela.activate(global.get_current_time());
     }
 
-    _aoFechar(id) {
-        const lembrada = this._origens.get(id);
-        if (!lembrada)
-            return;
-        this._origens.delete(id);
-        if (!this._deveInterceptar())
-            return;
-
-        const {monitor} = lembrada;
-        const visivelAntes = this._visivel(monitor);
-        const descritas = this._doMonitor(monitor);
-        const plano = planejarFechamento(descritas, visivelAntes, lembrada, this._config);
-        if (plano === null)
-            return;
-
-        this._aplicarPlano(monitor, plano, descritas);
-        if (visivelAntes === lembrada.destino)
-            this._focarTopoDo(monitor);
-    }
-
     _aplicarPlano(monitor, plano, descritas) {
         this._aplicar(plano.movimentos, descritas);
         this._visiveis[monitor] = plano.visivel;
-        if (!plano.deslocamento)
+        if (plano.deslocamento) {
+            for (const lembrada of this._origens.values()) {
+                if (lembrada.monitor !== monitor)
+                    continue;
+                lembrada.origem = deslocar(lembrada.origem, plano.deslocamento);
+                lembrada.destino = deslocar(lembrada.destino, plano.deslocamento);
+            }
+        }
+        this._fotografar(monitor);
+    }
+
+    _fotografar(monitor) {
+        this._ocupacoes[monitor] = virtuaisOcupados(this._doMonitor(monitor), this._visivel(monitor), this._config);
+    }
+
+    _arrumar() {
+        if (!this._config?.valida)
             return;
-        for (const lembrada of this._origens.values()) {
-            if (lembrada.monitor !== monitor)
-                continue;
-            lembrada.origem = deslocar(lembrada.origem, plano.deslocamento);
-            lembrada.destino = deslocar(lembrada.destino, plano.deslocamento);
+
+        const descritas = this._descrever(this._janelasMoveis());
+        for (const {index: monitor} of Main.layoutManager.monitors) {
+            const doMonitor = descritas.filter(d => d.monitor === monitor);
+            const lembradas = [...this._origens.entries()].filter(([, l]) => l.monitor === monitor);
+            const ocupadosAntes = this._ocupacoes[monitor] ?? new Set();
+            const visivelAntes = this._visivel(monitor);
+            const plano = planejarArrumacao(doMonitor, visivelAntes, this._config, {
+                ocupadosAntes,
+                lembradas: lembradas.map(([, lembrada]) => lembrada),
+            });
+
+            if (plano) {
+                this._aplicar(plano.movimentos, doMonitor);
+                this._visiveis[monitor] = plano.visivel;
+                for (const [id, lembrada] of lembradas) {
+                    if (!plano.ocupados.includes(lembrada.destino)) {
+                        this._origens.delete(id);
+                        continue;
+                    }
+                    lembrada.origem = posicaoAposArrumacao(lembrada.origem, plano.ocupados);
+                    lembrada.destino = posicaoAposArrumacao(lembrada.destino, plano.ocupados);
+                }
+                if (ocupadosAntes.has(visivelAntes) && !plano.ocupados.includes(visivelAntes))
+                    this._focarTopoDo(monitor);
+            }
+            this._fotografar(monitor);
         }
     }
 
@@ -479,16 +503,5 @@ export default class WorkspacesPorMonitor extends Extension {
         this._voltarAoCentro();
         if (foco?.located_on_workspace(global.workspace_manager.get_active_workspace()))
             foco.activate(global.get_current_time());
-    }
-
-    _normalizar() {
-        if (!this._config?.valida)
-            return;
-        const descritas = this._descrever(this._janelasMoveis());
-        for (const monitor of new Set(descritas.map(d => d.monitor))) {
-            const doMonitor = descritas.filter(d => d.monitor === monitor);
-            const plano = planejarTroca(doMonitor, this._visivel(monitor), 0, this._config);
-            this._aplicar(plano.movimentos, doMonitor);
-        }
     }
 }

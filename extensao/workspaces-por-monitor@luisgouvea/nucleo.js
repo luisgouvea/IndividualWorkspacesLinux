@@ -98,12 +98,12 @@ function remapear(janelas, visivel, novoVisivel, novoVirtualDe, config) {
     return movimentos;
 }
 
-function ocupacao(janelas, visivel, config) {
+export function virtuaisOcupados(janelas, visivel, config) {
     return new Set(janelas.map(j => virtualLimitado(j.global, config.centro, visivel, config)));
 }
 
-function vazioAPartirDe(ocupados, inicio, passo, config) {
-    for (let virtual = inicio; virtual >= 1 && virtual <= config.porMonitor; virtual += passo) {
+function vazioAPartirDe(ocupados, inicio, config) {
+    for (let virtual = inicio; virtual <= config.porMonitor; virtual++) {
         if (!ocupados.has(virtual))
             return virtual;
     }
@@ -121,24 +121,17 @@ export function planejarMaximizar(janelas, id, visivel, config) {
 
     const atual = virtualLimitado(maximizada.global, config.centro, visivel, config);
     const outras = janelas.filter(j => j.id !== id);
-    const ocupados = ocupacao(outras, visivel, config);
+    const ocupados = virtuaisOcupados(outras, visivel, config);
     if (!ocupados.has(atual))
         return null;
 
-    let origem, destino, deslocamento;
-    const vazioADireita = vazioAPartirDe(ocupados, atual + 1, 1, config);
-    if (vazioADireita !== null) {
-        deslocamento = {de: atual + 1, ate: vazioADireita - 1, passo: 1};
-        origem = atual;
-        destino = atual + 1;
-    } else {
-        const vazioAEsquerda = vazioAPartirDe(ocupados, atual - 1, -1, config);
-        if (vazioAEsquerda === null)
-            return null;
-        deslocamento = {de: vazioAEsquerda + 1, ate: atual, passo: -1};
-        origem = atual - 1;
-        destino = atual;
-    }
+    const vazioADireita = vazioAPartirDe(ocupados, atual + 1, config);
+    if (vazioADireita === null)
+        return null;
+
+    const deslocamento = {de: atual + 1, ate: vazioADireita - 1, passo: 1};
+    const origem = atual;
+    const destino = atual + 1;
 
     const movimentos = remapear(janelas, visivel, destino,
         (janela, virtual) => (janela.id === id ? destino : deslocar(virtual, deslocamento)), config);
@@ -154,7 +147,7 @@ export function planejarDesmaximizar(janelas, id, visivel, origem, config) {
     if (atual === origem)
         return null;
 
-    const sozinha = !ocupacao(janelas.filter(j => j.id !== id), visivel, config).has(atual);
+    const sozinha = !virtuaisOcupados(janelas.filter(j => j.id !== id), visivel, config).has(atual);
     const deslocamento = sozinha ? remocao(atual, config) : null;
     const novaOrigem = deslocamento ? deslocar(origem, deslocamento) : origem;
 
@@ -166,15 +159,49 @@ export function planejarDesmaximizar(janelas, id, visivel, origem, config) {
     return {visivel: novaOrigem, deslocamento, movimentos};
 }
 
-export function planejarFechamento(janelas, visivel, {origem, destino}, config) {
-    if (ocupacao(janelas, visivel, config).has(destino))
-        return null;
+export function posicaoAposArrumacao(virtual, ocupados) {
+    return Math.max(1, ocupados.filter(o => o <= virtual).length);
+}
 
-    const deslocamento = remocao(destino, config);
-    const novoVisivel = deslocar(visivel === destino ? origem : visivel, deslocamento);
+function visivelAposArrumacao(visivel, ocupados, ocupadosAntes, lembradas, config) {
+    if (ocupados.length === 0)
+        return 1;
+    if (ocupados.includes(visivel))
+        return posicaoAposArrumacao(visivel, ocupados);
+
+    const fechada = lembradas.find(l => l.destino === visivel && ocupados.includes(l.origem));
+    if (fechada)
+        return posicaoAposArrumacao(fechada.origem, ocupados);
+
+    if (ocupadosAntes.has(visivel)) {
+        const aDireita = ocupados.find(o => o > visivel);
+        return posicaoAposArrumacao(aDireita ?? visivel, ocupados);
+    }
+
+    return Math.min(ocupados.length + 1, config.porMonitor);
+}
+
+export function planejarArrumacao(janelas, visivel, config, {ocupadosAntes = new Set(), lembradas = []} = {}) {
+    const ocupados = [...virtuaisOcupados(janelas, visivel, config)].sort((a, b) => a - b);
+    const novoVisivel = visivelAposArrumacao(visivel, ocupados, ocupadosAntes, lembradas, config);
     const movimentos = remapear(janelas, visivel, novoVisivel,
-        (_janela, virtual) => deslocar(virtual, deslocamento), config);
-    return {visivel: novoVisivel, deslocamento, movimentos};
+        (_janela, virtual) => posicaoAposArrumacao(virtual, ocupados), config);
+
+    if (movimentos.length === 0 && novoVisivel === visivel)
+        return null;
+    return {visivel: novoVisivel, ocupados, movimentos};
+}
+
+export function ultimoNavegavel(janelas, visivel, config) {
+    const ocupados = virtuaisOcupados(janelas, visivel, config);
+    const maior = ocupados.size > 0 ? Math.max(...ocupados) : 0;
+    return Math.min(config.porMonitor, maior + 1);
+}
+
+export function planejarNavegacao(janelas, visivel, delta, config) {
+    if (visivel + delta > ultimoNavegavel(janelas, visivel, config))
+        return null;
+    return planejarTroca(janelas, visivel, delta, config);
 }
 
 export function deltaParaGlobal(global, config) {

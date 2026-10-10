@@ -24,7 +24,7 @@ const JANELAS = [
     {id: 'x1', monitor: 0, global: 0},
     {id: 'x2', monitor: 0, global: 1},
     {id: 'y1', monitor: 1, global: 0},
-    {id: 'y2', monitor: 1, global: 2},
+    {id: 'y2', monitor: 1, global: 1},
 ];
 
 let extensao = null;
@@ -73,18 +73,23 @@ test('na ponta, o atalho não faz nada', () => {
 test('atalho numerado vai ao workspace daquele monitor', () => {
     ligar();
     focar('y1');
-    apertar('switch-to-workspace-3');
+    apertar('switch-to-workspace-2');
     assert.deepEqual(aVista(1), ['y2']);
+    apertar('switch-to-workspace-3');
+    assert.deepEqual(aVista(1), []);
     assert.deepEqual(aVista(0), ['x1']);
 });
 
 test('Overview e gesto trocam só o monitor do ponteiro', () => {
     ligar({ponteiro: 1});
     estado.workspaces[3].activate(0);
-    assert.deepEqual(aVista(1), []);
+    assert.deepEqual(aVista(1), ['y2']);
     assert.deepEqual(aVista(0), ['x1']);
     estado.workspaces[3].activate(0);
-    assert.deepEqual(aVista(1), ['y2']);
+    assert.deepEqual(aVista(1), []);
+    const movimentos = estado.movimentos;
+    estado.workspaces[3].activate(0);
+    assert.equal(estado.movimentos, movimentos);
     assert.deepEqual(aVista(0), ['x1']);
     assert.equal(indiceAtivo(), 2);
 });
@@ -109,7 +114,7 @@ test('Alt+Tab para uma janela do outro monitor troca só aquele monitor', () => 
 test('troca global vinda de fora é compensada no monitor da janela que recebeu o foco', () => {
     ligar({ponteiro: 0});
     janela('y2').activate();
-    assert.equal(indiceAtivo(), 4);
+    assert.equal(indiceAtivo(), 3);
     desenhar();
     assert.equal(indiceAtivo(), 2);
     assert.deepEqual(aVista(1), ['y2']);
@@ -151,8 +156,9 @@ test('levar a janela ao workspace vizinho acompanha a janela', () => {
     apertar('move-to-workspace-right');
     assert.deepEqual(aVista(0), ['x1', 'x2']);
     assert.equal(estado.foco, janela('x1'));
+    desenhar();
     apertar('switch-to-workspace-left');
-    assert.deepEqual(aVista(0), []);
+    assert.deepEqual(aVista(0), ['x1', 'x2']);
     assert.deepEqual(aVista(1), ['y1']);
 });
 
@@ -161,7 +167,7 @@ test('janela levada para o outro monitor aparece no workspace visível dele', ()
     janela('x1').moverParaMonitor(1);
     desenhar();
     assert.deepEqual(aVista(1), ['x1', 'y1']);
-    assert.deepEqual(aVista(0), []);
+    assert.deepEqual(aVista(0), ['x2']);
 });
 
 test('arquivo arrastado sobre as miniaturas não troca workspace', () => {
@@ -238,10 +244,10 @@ test('um clique na miniatura troca o monitor dela e fecha o Overview', () => {
 });
 
 test('clicar numa janela dentro da miniatura vai para ela e a foca, mesmo com outra por cima', () => {
-    ligar({ponteiro: 0, janelas: [...JANELAS, {id: 'y3', monitor: 1, global: 2}]});
+    ligar({ponteiro: 0, janelas: [...JANELAS, {id: 'y3', monitor: 1, global: 1}]});
     abrirOverview();
     focar('x1');
-    const miniatura = new WorkspaceThumbnail(estado.workspaces[4], 1);
+    const miniatura = new WorkspaceThumbnail(estado.workspaces[3], 1);
     miniatura._addWindowClone(janela('y2')).clicar();
     assert.deepEqual(aVista(1), ['y2', 'y3']);
     assert.deepEqual(aVista(0), ['x1']);
@@ -466,4 +472,72 @@ test('duas maximizações seguidas: fechar a primeira ainda volta ao lugar certo
     focar('c');
     apertar('switch-to-workspace-right');
     assert.deepEqual(aVista(0), ['b']);
+});
+
+const TRES_OCUPADOS = [
+    {id: 'x1', monitor: 0, global: 0},
+    {id: 'x2', monitor: 0, global: 1},
+    {id: 'x3', monitor: 0, global: 2},
+    {id: 'y1', monitor: 1, global: 1},
+];
+
+test('fechar a última janela do workspace do meio: ele some e o da direita entra no lugar', () => {
+    ligar({ativo: 1, janelas: TRES_OCUPADOS});
+    assert.deepEqual(aVista(0), ['x2']);
+    focar('x2');
+    janela('x2').fechar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x3']);
+    assert.deepEqual(aVista(1), ['y1']);
+    focar('x3');
+    apertar('switch-to-workspace-left');
+    assert.deepEqual(aVista(0), ['x1']);
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x3']);
+});
+
+test('fechar a última janela do último workspace leva ao da esquerda', () => {
+    ligar({ativo: 1, janelas: TRES_OCUPADOS});
+    focar('x2');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x3']);
+    janela('x3').fechar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x2']);
+    assert.equal(estado.foco, janela('x2'));
+});
+
+test('a navegação para no vazio do fim, por atalho e por miniatura', () => {
+    ligar({
+        janelas: [
+            {id: 'x1', monitor: 0, global: 0},
+            {id: 'y1', monitor: 1, global: 0},
+        ],
+    });
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), []);
+    const movimentos = estado.movimentos;
+    apertar('switch-to-workspace-right');
+    assert.equal(estado.movimentos, movimentos);
+    apertar('switch-to-workspace-1');
+    assert.deepEqual(aVista(0), ['x1']);
+    abrirOverview();
+    new WorkspaceThumbnail(estado.workspaces[4], 0).activate(0);
+    assert.equal(estado.overviewAberto, true);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.deepEqual(aVista(1), ['y1']);
+});
+
+test('buraco atrás do workspace à vista some sem mudar o que se vê nem roubar o foco', () => {
+    ligar({ativo: 2, janelas: TRES_OCUPADOS});
+    assert.deepEqual(aVista(0), ['x3']);
+    focar('y1');
+    janela('x2').moverParaMonitor(1);
+    desenhar();
+    assert.deepEqual(aVista(0), ['x3']);
+    assert.equal(estado.foco, janela('y1'));
+    focar('x3');
+    apertar('switch-to-workspace-left');
+    assert.deepEqual(aVista(0), ['x1']);
 });
