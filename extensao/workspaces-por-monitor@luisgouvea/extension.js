@@ -336,12 +336,13 @@ export default class WorkspacesPorMonitor extends Extension {
             ponteiro: global.display.get_current_monitor(),
             foco: foco && foco.located_on_workspace(ativo) ? foco.get_monitor() : null,
         });
-        const trocou = this._trocarNoMonitor(monitor, deltaParaGlobal(indice, this._config));
+        this._trocarNoMonitor(monitor, deltaParaJanela(indice, this._visivel(monitor), this._config));
         console.log(`${PREFIXO} troca global para o workspace ${indice + 1} ` +
-            `compensada no monitor ${monitor + 1}${trocou ? '' : ' (recusada: além da ponta)'}`);
+            `compensada no monitor ${monitor + 1}`);
 
         this._voltarAoCentro();
-        foco?.activate(global.get_current_time());
+        if (foco?.located_on_workspace(global.workspace_manager.get_active_workspace()))
+            foco.activate(global.get_current_time());
     }
 
     _normalizar() {

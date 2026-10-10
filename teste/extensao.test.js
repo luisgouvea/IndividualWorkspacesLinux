@@ -125,6 +125,17 @@ test('troca global sem janela em foco e além da ponta é desfeita', () => {
     assert.deepEqual(aVista(1), ['y1']);
 });
 
+test('troca global para uma janela fora das pontas não entra em laço', () => {
+    ligar({ponteiro: 0});
+    estado.janelas.find(j => j.id === 'y2').workspace = estado.workspaces[0];
+    janela('y2').activate();
+    desenhar();
+    assert.equal(indiceAtivo(), 2);
+    assert.deepEqual(aVista(1), ['y1', 'y2']);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.foco, janela('y2'));
+});
+
 test('janela solta numa miniatura fora das pontas volta para dentro', () => {
     ligar();
     janela('x2').change_workspace_by_index(0);

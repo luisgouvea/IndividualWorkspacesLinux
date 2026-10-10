@@ -255,8 +255,12 @@ export function montarCenario({
     return estado;
 }
 
+const QUADROS_ATE_DESISTIR = 100;
+
 export function desenhar() {
-    while (estado.laters.size > 0) {
+    for (let quadro = 0; estado.laters.size > 0; quadro++) {
+        if (quadro === QUADROS_ATE_DESISTIR)
+            throw new Error('laters não param de se reagendar');
         const [id, acao] = estado.laters.entries().next().value;
         estado.laters.delete(id);
         acao();
