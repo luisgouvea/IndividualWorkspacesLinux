@@ -236,7 +236,109 @@ export const Meta = {
 };
 
 export const Shell = {ActionMode: {NORMAL: 1, OVERVIEW: 2}};
-export const GLib = {SOURCE_REMOVE: false};
+export const GLib = {
+    SOURCE_REMOVE: false,
+    PRIORITY_DEFAULT: 0,
+    timeout_add(_prioridade, intervalo, acao) {
+        estado.proximoTemporizador += 1;
+        estado.temporizadores.set(estado.proximoTemporizador, {quando: estado.agora + intervalo, intervalo, acao});
+        return estado.proximoTemporizador;
+    },
+    source_remove(id) {
+        if (!estado.temporizadores.delete(id))
+            throw new Error(`source_remove de um temporizador que não existe: ${id}`);
+    },
+};
+
+export class AtorFalso {
+    constructor(propriedades = {}) {
+        Object.assign(this, propriedades);
+        this.filhos = [];
+        this.pai = null;
+        this.destruido = false;
+        this.pseudoClasses = new Set();
+        this.restricoes = [];
+        this.visible = true;
+        this.opacity = 255;
+    }
+
+    vivo() {
+        if (this.destruido)
+            throw new Error('ator usado depois de destruído');
+    }
+
+    add_child(filho) {
+        this.vivo();
+        filho.pai = this;
+        this.filhos.push(filho);
+    }
+
+    destroy_all_children() {
+        this.vivo();
+        for (const filho of [...this.filhos])
+            filho.destroy();
+    }
+
+    destroy() {
+        this.vivo();
+        for (const filho of [...this.filhos])
+            filho.destroy();
+        if (this.pai)
+            this.pai.filhos = this.pai.filhos.filter(f => f !== this);
+        this.pai = null;
+        this.destruido = true;
+    }
+
+    add_constraint(restricao) {
+        this.vivo();
+        this.restricoes.push(restricao);
+    }
+
+    add_style_pseudo_class(nome) {
+        this.vivo();
+        this.pseudoClasses.add(nome);
+    }
+
+    show() {
+        this.vivo();
+        this.visible = true;
+    }
+
+    remove_all_transitions() {
+        this.vivo();
+    }
+
+    ease({opacity, onComplete}) {
+        this.vivo();
+        if (opacity !== undefined)
+            this.opacity = opacity;
+        onComplete?.();
+    }
+}
+
+export const Clutter = {
+    Actor: AtorFalso,
+    ActorAlign: {CENTER: 'centro', END: 'fim'},
+    AnimationMode: {EASE_OUT_QUAD: 'suave'},
+    OffscreenRedirect: {ALWAYS: 'sempre'},
+};
+
+export const St = {Widget: AtorFalso, BoxLayout: AtorFalso, Bin: AtorFalso};
+
+export const uiGroup = new AtorFalso();
+
+export function passarTempo(milissegundos) {
+    estado.agora += milissegundos;
+    for (;;) {
+        const vencido = [...estado.temporizadores.entries()].find(([, t]) => t.quando <= estado.agora);
+        if (!vencido)
+            return;
+        const [id, temporizador] = vencido;
+        estado.temporizadores.delete(id);
+        if (temporizador.acao())
+            estado.temporizadores.set(id, {...temporizador, quando: estado.agora + temporizador.intervalo});
+    }
+}
 export const Gio = {Settings: class extends Sinais {}};
 
 export const wm = {
@@ -295,6 +397,7 @@ export function montarCenario({
     for (const objeto of [workspaceManager, display, layoutManager, xdndHandler, gerenciadorDeJanelas])
         objeto._ligacoes = [];
     wm.atalhos.clear();
+    uiGroup.filhos = [];
 
     Object.assign(estado, {
         dinamicos,
@@ -308,6 +411,9 @@ export function montarCenario({
         proximoLater: 0,
         atalhosDoShell: [],
         overviewAberto: false,
+        temporizadores: new Map(),
+        proximoTemporizador: 0,
+        agora: 0,
         notificacoes: [],
         workspaces: Array.from({length: total}, () => new Workspace()),
     });

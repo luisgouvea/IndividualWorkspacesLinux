@@ -17,6 +17,8 @@ import {
     xdndHandler,
     gerenciadorDeJanelas,
     abrirJanela,
+    uiGroup,
+    passarTempo,
 } from './gnome-falso/estado.js';
 import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
@@ -570,4 +572,117 @@ test('a janela do DING não conta como ocupante de workspace', () => {
     const movimentos = estado.movimentos;
     apertar('switch-to-workspace-right');
     assert.equal(estado.movimentos, movimentos);
+});
+
+function avisos() {
+    return uiGroup.filhos.map(ator => {
+        const pontos = ator.filhos[0].filhos;
+        return {
+            monitor: ator.restricoes[0].index,
+            pontos: pontos.length,
+            atual: pontos.findIndex(p => p.pseudoClasses.has('active')) + 1,
+        };
+    });
+}
+
+test('aviso: o atalho mostra os pontos só no monitor que trocou', () => {
+    ligar({ponteiro: 1});
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(avisos(), [{monitor: 0, pontos: 3, atual: 2}]);
+});
+
+test('aviso: some sozinho e é destruído depois do tempo', () => {
+    ligar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    const ator = uiGroup.filhos[0];
+    passarTempo(599);
+    assert.equal(avisos().length, 1);
+    passarTempo(1);
+    assert.deepEqual(avisos(), []);
+    assert.equal(ator.destruido, true);
+    assert.equal(estado.temporizadores.size, 0);
+});
+
+test('aviso: trocar de novo reaproveita o mesmo aviso e reinicia o tempo', () => {
+    ligar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    const ator = uiGroup.filhos[0];
+    passarTempo(400);
+    apertar('switch-to-workspace-left');
+    assert.equal(uiGroup.filhos.length, 1);
+    assert.equal(uiGroup.filhos[0], ator);
+    assert.deepEqual(avisos(), [{monitor: 0, pontos: 3, atual: 1}]);
+    passarTempo(599);
+    assert.equal(avisos().length, 1);
+    passarTempo(1);
+    assert.deepEqual(avisos(), []);
+});
+
+test('aviso: o gesto mostra no monitor do ponteiro, mas não com o Overview aberto', () => {
+    ligar({ponteiro: 1});
+    estado.workspaces[3].activate(0);
+    assert.deepEqual(avisos(), [{monitor: 1, pontos: 3, atual: 2}]);
+    passarTempo(1000);
+    abrirOverview();
+    estado.workspaces[1].activate(0);
+    assert.deepEqual(avisos(), []);
+});
+
+test('aviso: clicar numa miniatura fecha o Overview e mostra o aviso', () => {
+    ligar({ponteiro: 1});
+    abrirOverview();
+    new WorkspaceThumbnail(estado.workspaces[3], 0).activate(0);
+    assert.equal(estado.overviewAberto, false);
+    assert.deepEqual(avisos(), [{monitor: 0, pontos: 3, atual: 2}]);
+});
+
+test('aviso: na ponta aparece sem mover nada', () => {
+    ligar();
+    focar('x1');
+    const movimentos = estado.movimentos;
+    apertar('switch-to-workspace-left');
+    assert.equal(estado.movimentos, movimentos);
+    assert.deepEqual(avisos(), [{monitor: 0, pontos: 3, atual: 1}]);
+});
+
+test('aviso: levar a janela junto também mostra', () => {
+    ligar();
+    focar('x1');
+    apertar('move-to-workspace-right');
+    assert.deepEqual(avisos(), [{monitor: 0, pontos: 3, atual: 2}]);
+});
+
+test('aviso: maximizar e a arrumação automática não mostram', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    janela('x1').maximizar();
+    desenhar();
+    janela('x1').fechar();
+    desenhar();
+    assert.deepEqual(avisos(), []);
+});
+
+test('aviso: desligar com o aviso à vista não deixa nada na tela', () => {
+    ligar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    const ator = uiGroup.filhos[0];
+    extensao.disable();
+    extensao = null;
+    assert.deepEqual(uiGroup.filhos, []);
+    assert.equal(ator.destruido, true);
+    assert.equal(estado.temporizadores.size, 0);
+    passarTempo(1000);
+});
+
+test('aviso: mudar os monitores apaga os avisos', () => {
+    ligar();
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    layoutManager.emitir('monitors-changed');
+    desenhar();
+    assert.deepEqual(uiGroup.filhos, []);
+    assert.equal(estado.temporizadores.size, 0);
 });

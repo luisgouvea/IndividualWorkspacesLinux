@@ -204,6 +204,10 @@ export function planejarNavegacao(janelas, visivel, delta, config) {
     return planejarTroca(janelas, visivel, delta, config);
 }
 
+export function planejarAviso(janelas, visivel, config) {
+    return {quantidade: Math.max(ultimoNavegavel(janelas, visivel, config), visivel), atual: visivel};
+}
+
 export function deltaParaGlobal(global, config) {
     return global - config.centro;
 }

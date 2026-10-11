@@ -83,6 +83,18 @@ O modo dinâmico nativo do GNOME não pode ser ligado, porque ele mexe nos
 workspaces de todos os monitores juntos. Ele também nunca remove o workspace
 em que você está; esta extensão remove na hora.
 
+## Aviso de workspace
+
+Ao trocar de workspace, o monitor que trocou mostra por 0,6 s a mesma fileira
+de pontinhos do GNOME (`○ ● ○`), com os workspaces **daquele monitor**. O
+ponto cheio é o atual.
+
+- **Usa o visual do próprio tema**, não recebe clique e some sozinho.
+- **Aparece só quando você navega:** atalho, gesto ou clique numa miniatura.
+- **Não aparece quando a extensão mexe sozinha:** ao maximizar ou quando um
+  workspace vazio some.
+- **Na ponta,** aparece sem mudar nada, avisando que não dá para ir além.
+
 ## Maximizar
 
 Como a tela cheia do macOS, mas só para **maximizar** (botão, duplo clique no
@@ -167,6 +179,8 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
 - [ ] Desmaximizar desfaz o empurrão (a ordem volta); fechar também.
 - [ ] F11 e `Super+←` não movem a janela.
 - [ ] No WS1 e no vazio do fim, o atalho para.
+- [ ] Trocar por atalho ou gesto mostra os pontinhos só no monitor que trocou,
+      e eles somem sozinhos.
 - [ ] Com WS1, WS2 e WS3 ocupados, estando no WS2, fechar a última janela dele:
       o antigo WS3 entra no lugar. Fechar a do último leva ao da esquerda.
 - [ ] Arrastar uma janela de um monitor para o outro.

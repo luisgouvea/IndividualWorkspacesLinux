@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ThumbnailState, WorkspaceThumbnail} from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {AvisoDeWorkspace} from './aviso.js';
 import {
     lerConfiguracao,
     planejarInicio,
@@ -16,6 +17,7 @@ import {
     planejarDesmaximizar,
     planejarArrumacao,
     planejarNavegacao,
+    planejarAviso,
     posicaoAposArrumacao,
     virtuaisOcupados,
     deslocar,
@@ -44,6 +46,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._workspacesObservados = [];
         this._origens = new Map();
         this._ocupacoes = {};
+        this._aviso = new AvisoDeWorkspace();
 
         this._injecoes = new InjectionManager();
         this._injetar();
@@ -58,6 +61,8 @@ export default class WorkspacesPorMonitor extends Extension {
         this._devolverAtalhos();
         this._desconectar();
         this._cancelarAgendados();
+        this._aviso.esconderTodos();
+        this._aviso = null;
         this._config = null;
         this._visiveis = null;
         this._origens = null;
@@ -123,7 +128,10 @@ export default class WorkspacesPorMonitor extends Extension {
             'window-left-monitor', () => this._agendarArrumacao(),
             this);
         Main.layoutManager.connectObject(
-            'monitors-changed', () => this._agendar('reiniciar', () => this._iniciar()),
+            'monitors-changed', () => {
+                this._aviso.esconderTodos();
+                this._agendar('reiniciar', () => this._iniciar());
+            },
             this);
         global.window_manager.connectObject(
             'size-change', (_wm, ator, mudanca) => this._aoMudarTamanho(ator, mudanca),
@@ -325,6 +333,13 @@ export default class WorkspacesPorMonitor extends Extension {
         const monitor = monitorDaAcao('ponteiro', this._contexto());
         if (this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config), planejarNavegacao))
             this._focarTopoDo(monitor);
+        if (!Main.overview.visible)
+            this._mostrarAviso(monitor);
+    }
+
+    _mostrarAviso(monitor) {
+        const {quantidade, atual} = planejarAviso(this._doMonitor(monitor), this._visivel(monitor), this._config);
+        this._aviso.mostrar(monitor, quantidade, atual);
     }
 
     _aoClicarMiniatura(monitor, destino) {
@@ -332,6 +347,7 @@ export default class WorkspacesPorMonitor extends Extension {
             return;
         this._focarTopoDo(monitor);
         Main.overview.hide();
+        this._mostrarAviso(monitor);
     }
 
     _aoClicarJanelaDaMiniatura(janela) {
@@ -365,6 +381,7 @@ export default class WorkspacesPorMonitor extends Extension {
         const delta = deltaParaAtalho(alvo, this._visivel(monitor), this._config);
         if (delta !== 0 && this._trocarNoMonitor(monitor, delta, planejarNavegacao))
             this._focarTopoDo(monitor);
+        this._mostrarAviso(monitor);
     }
 
     _levarJanela(janela, alvo) {
@@ -377,13 +394,13 @@ export default class WorkspacesPorMonitor extends Extension {
         const descritas = this._doMonitor(monitor);
         const plano = planejarLevarJanela(descritas, janela.get_id(), visivel,
             deltaParaAtalho(alvo, visivel, this._config), this._config);
-        if (plano === null)
-            return;
-
-        this._aplicar(plano.movimentos, descritas);
-        this._visiveis[monitor] = plano.visivel;
-        this._fotografar(monitor);
-        janela.activate(global.get_current_time());
+        if (plano !== null) {
+            this._aplicar(plano.movimentos, descritas);
+            this._visiveis[monitor] = plano.visivel;
+            this._fotografar(monitor);
+            janela.activate(global.get_current_time());
+        }
+        this._mostrarAviso(monitor);
     }
 
     _aoMudarTamanho(ator, mudanca) {

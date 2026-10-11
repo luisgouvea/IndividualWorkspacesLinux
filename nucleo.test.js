@@ -13,6 +13,7 @@ import {
     posicaoAposArrumacao,
     ultimoNavegavel,
     planejarNavegacao,
+    planejarAviso,
     deslocar,
     deltaParaGlobal,
     deltaParaJanela,
@@ -513,4 +514,20 @@ test('navegar até o vazio do fim é permitido, além dele não', () => {
         movimentos: [{id: 'a', global: 1}],
     });
     assert.equal(planejarNavegacao([{id: 'a', global: 1}], 2, 1, CINCO), null);
+});
+
+test('o aviso mostra os workspaces navegáveis do monitor e marca o atual', () => {
+    const janelas = [
+        {id: 'a', global: 1},
+        {id: 'b', global: 2},
+    ];
+    assert.deepEqual(planejarAviso(janelas, 2, CINCO), {quantidade: 3, atual: 2});
+});
+
+test('sem janelas, o aviso tem um ponto só', () => {
+    assert.deepEqual(planejarAviso([], 1, CINCO), {quantidade: 1, atual: 1});
+});
+
+test('o aviso nunca tem menos pontos que o workspace à vista', () => {
+    assert.deepEqual(planejarAviso([{id: 'a', global: 0}], 3, CINCO), {quantidade: 3, atual: 3});
 });
