@@ -44,8 +44,17 @@ O instalador faz quatro coisas:
 4. Habilita a extensão.
 
 Depois, **faça logout e login**: no Wayland, extensão nova só carrega em sessão
-nova. Para outro número por monitor, use `POR_MONITOR=4 ./instalar.sh`, que dá
-7 globais.
+nova.
+
+**Atualizar:** `git pull && ./instalar.sh`. A reinstalação **mantém** o número
+de workspaces que você escolheu.
+
+**Mudar o número de workspaces:**
+
+- Em Configurações → Multitarefa, use um **número ímpar**: 5 (3 por monitor),
+  7 (4 por monitor), 9 (5 por monitor). Com número par, a extensão avisa e fica
+  parada.
+- Ou pelo instalador: `POR_MONITOR=5 ./instalar.sh` dá 9.
 
 **Desfazer:** `./desinstalar.sh` remove a extensão, restaura a configuração
 anterior e religa o que o instalador desativou.
@@ -114,8 +123,8 @@ título ou `Super+↑`).
 - **O que não muda:** o outro monitor. Também ficam no lugar a janela que já
   está sozinha, a tela cheia (F11, vídeo) e a meia tela (`Super+←/→`).
 
-Com 3 workspaces por monitor, a vaga acaba rápido. `POR_MONITOR=4 ./instalar.sh`
-dá mais espaço.
+Com 3 workspaces por monitor, a vaga acaba rápido. Mais workspaces dão mais
+espaço (veja "Mudar o número de workspaces").
 
 A extensão "Maximize Window Into New Workspace" conflita com esta: ela
 reordena os workspaces e bagunça o outro monitor. O instalador a desliga.

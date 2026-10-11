@@ -5,17 +5,16 @@ ORIGEM="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UUID="workspaces-por-monitor@luisgouvea"
 DESTINO="$HOME/.local/share/gnome-shell/extensions/$UUID"
 ESTADO="$HOME/.local/share/workspaces-por-monitor"
-POR_MONITOR="${POR_MONITOR:-3}"
-TOTAL=$((2 * POR_MONITOR - 1))
+PADRAO_POR_MONITOR=3
 CONFLITANTES=(
   "simulate-switching-workspaces-on-active-monitor@micheledaros.com"
   "smart-workspace-manager@local"
   "MaximizeWindowIntoNewWorkspace@kyleross.com"
 )
-CONFIGURACAO=(
-  "org.gnome.mutter dynamic-workspaces false"
-  "org.gnome.mutter workspaces-only-on-primary false"
-  "org.gnome.desktop.wm.preferences num-workspaces $TOTAL"
+CHAVES=(
+  "org.gnome.mutter dynamic-workspaces"
+  "org.gnome.mutter workspaces-only-on-primary"
+  "org.gnome.desktop.wm.preferences num-workspaces"
 )
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -23,13 +22,33 @@ aviso() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
 
 mkdir -p "$ESTADO"
 
-if [ ! -f "$ESTADO/configuracao-anterior" ]; then
+ATUALIZACAO=false
+if [ -f "$ESTADO/configuracao-anterior" ]; then
+  ATUALIZACAO=true
+else
   info "Guardando a configuração atual para o desinstalar.sh"
-  for linha in "${CONFIGURACAO[@]}"; do
-    read -r esquema chave _ <<<"$linha"
+  for linha in "${CHAVES[@]}"; do
+    read -r esquema chave <<<"$linha"
     echo "$esquema $chave $(gsettings get "$esquema" "$chave")"
   done > "$ESTADO/configuracao-anterior"
 fi
+
+ATUAL="$(gsettings get org.gnome.desktop.wm.preferences num-workspaces)"
+if [ -n "${POR_MONITOR:-}" ]; then
+  TOTAL=$((2 * POR_MONITOR - 1))
+  MOTIVO="informado por POR_MONITOR=$POR_MONITOR"
+elif $ATUALIZACAO && [[ "$ATUAL" =~ ^[0-9]+$ ]] && (( ATUAL >= 3 && ATUAL % 2 == 1 )); then
+  TOTAL=$ATUAL
+  MOTIVO="mantido, é o número que já estava em uso"
+else
+  TOTAL=$((2 * PADRAO_POR_MONITOR - 1))
+  MOTIVO="padrão"
+fi
+CONFIGURACAO=(
+  "org.gnome.mutter dynamic-workspaces false"
+  "org.gnome.mutter workspaces-only-on-primary false"
+  "org.gnome.desktop.wm.preferences num-workspaces $TOTAL"
+)
 
 info "Copiando a extensão para $DESTINO"
 mkdir -p "$DESTINO"
@@ -44,7 +63,7 @@ for uuid in "${CONFLITANTES[@]}"; do
   fi
 done
 
-info "Configurando $TOTAL workspaces fixos, abrangendo as telas ($POR_MONITOR por monitor)"
+info "Configurando $TOTAL workspaces fixos, abrangendo as telas ($(( (TOTAL + 1) / 2 )) por monitor; $MOTIVO)"
 for linha in "${CONFIGURACAO[@]}"; do
   read -r esquema chave valor <<<"$linha"
   gsettings set "$esquema" "$chave" "$valor"
