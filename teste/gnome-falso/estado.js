@@ -319,6 +319,8 @@ export class AtorFalso {
 
 export const Clutter = {
     Actor: AtorFalso,
+    TextDirection: {LTR: 'esquerda-para-direita', RTL: 'direita-para-esquerda'},
+    get_default_text_direction: () => 'esquerda-para-direita',
     ActorAlign: {CENTER: 'centro', END: 'fim'},
     AnimationMode: {EASE_OUT_QUAD: 'suave'},
     OffscreenRedirect: {ALWAYS: 'sempre'},
@@ -363,6 +365,14 @@ export const overview = {
     },
 };
 export const xdndHandler = new Sinais();
+
+export const DragMotionResult = {CONTINUE: 'continuar', MOVE_DROP: 'mover', COPY_DROP: 'copiar'};
+
+export function moveWindowToMonitorAndWorkspace(janelaMovida, monitor, indice) {
+    if (janelaMovida.get_monitor() !== monitor)
+        janelaMovida.moverParaMonitor(monitor);
+    janelaMovida.change_workspace_by_index(indice);
+}
 
 export function createWorkspacesAdjustment(_ator) {
     return {
@@ -427,6 +437,7 @@ export function montarCenario({
         proximoTemporizador: 0,
         agora: 0,
         notificacoes: [],
+        insercoesGlobais: 0,
         workspaces: Array.from({length: total}, () => new Workspace()),
     });
     estado.ativo = estado.workspaces[ativo];

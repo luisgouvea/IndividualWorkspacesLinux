@@ -10,6 +10,7 @@ const MAPA = {
     'resource:///org/gnome/shell/ui/layout.js': 'layout.js',
     'resource:///org/gnome/shell/ui/main.js': 'main.js',
     'resource:///org/gnome/shell/ui/workspaceThumbnail.js': 'miniatura.js',
+    'resource:///org/gnome/shell/ui/dnd.js': 'dnd.js',
     'resource:///org/gnome/shell/extensions/extension.js': 'extensao.js',
 };
 

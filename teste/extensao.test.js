@@ -22,7 +22,7 @@ import {
     deslizarNoTouchpad,
     deslizarNoOverview,
 } from './gnome-falso/estado.js';
-import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
+import {WorkspaceThumbnail, ThumbnailsBox} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
 
 const JANELAS = [
@@ -742,4 +742,152 @@ test('swipe dentro do Overview: no workspace à vista, a janela antiga sai antes
     assert.deepEqual(eventos, ['saiu y1', 'entrou y2', 'saiu y2', 'entrou y1']);
     assert.deepEqual(aVista(1), ['y1']);
     assert.deepEqual(aVista(0), ['x1']);
+});
+
+const NO_VAO_ANTES_DE = indice => 100 * indice - 10;
+const SOBRE_A_MINIATURA = indice => 100 * indice + 40;
+
+function arrastar(fonte, monitor, x) {
+    const caixa = new ThumbnailsBox(monitor);
+    const resultado = caixa.handleDragOver(fonte, null, x, 0, 0);
+    return {caixa, resultado, soltar: () => caixa.acceptDrop(fonte, null, x, 0, 0)};
+}
+
+function arrastarJanela(id, monitor, x) {
+    return arrastar({metaWindow: janela(id)}, monitor, x);
+}
+
+function workspaceDe(id) {
+    return estado.workspaces.indexOf(janela(id).workspace);
+}
+
+test('vão: arrastar uma janela até o meio de duas miniaturas abre o vão; em cima de uma miniatura, não', () => {
+    ligar();
+    abrirOverview();
+    const noVao = arrastarJanela('x2', 0, NO_VAO_ANTES_DE(2));
+    assert.equal(noVao.resultado, 'mover');
+    assert.equal(noVao.caixa._dropPlaceholderPos, 2);
+    const sobre = arrastarJanela('x2', 0, SOBRE_A_MINIATURA(2));
+    assert.equal(sobre.caixa._dropPlaceholderPos, -1);
+    assert.equal(sobre.caixa._dropWorkspace, 2);
+});
+
+test('vão: soltar à esquerda do atual cria o workspace ali, só naquele monitor, e você continua no atual', () => {
+    ligar();
+    abrirOverview();
+    assert.equal(arrastarJanela('x2', 0, NO_VAO_ANTES_DE(2)).soltar(), true);
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(workspaceDe('x2'), 1);
+    assert.deepEqual(aVista(1), ['y1']);
+    assert.equal(workspaceDe('y2'), 3);
+    assert.equal(estado.overviewAberto, true);
+    assert.equal(estado.insercoesGlobais, 0);
+    assert.equal(indiceAtivo(), 2);
+});
+
+test('vão: soltar à direita do atual empurra os da direita', () => {
+    ligar({janelas: [...JANELAS, {id: 'x3', monitor: 0, global: 0}]});
+    abrirOverview();
+    arrastarJanela('x3', 0, NO_VAO_ANTES_DE(3)).soltar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(workspaceDe('x3'), 3);
+    assert.equal(workspaceDe('x2'), 4);
+});
+
+test('vão: com o monitor cheio, o lugar que a própria janela deixa vago permite reordenar', () => {
+    ligar({
+        janelas: [
+            {id: 'x1', monitor: 0, global: 0},
+            {id: 'x2', monitor: 0, global: 1},
+            {id: 'x3', monitor: 0, global: 2},
+            {id: 'y1', monitor: 1, global: 0},
+        ],
+    });
+    abrirOverview();
+    const arraste = arrastarJanela('x3', 0, NO_VAO_ANTES_DE(2));
+    assert.equal(arraste.caixa._dropPlaceholderPos, 2);
+    arraste.soltar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(workspaceDe('x3'), 1);
+    assert.equal(workspaceDe('x2'), 3);
+});
+
+test('vão: sem vaga ele não abre, e a janela vai para a miniatura onde for solta', () => {
+    ligar({
+        janelas: [
+            {id: 'x1', monitor: 0, global: 0},
+            {id: 'x4', monitor: 0, global: 0},
+            {id: 'x2', monitor: 0, global: 1},
+            {id: 'x3', monitor: 0, global: 2},
+            {id: 'y1', monitor: 1, global: 0},
+        ],
+    });
+    abrirOverview();
+    assert.equal(arrastarJanela('x4', 0, NO_VAO_ANTES_DE(3)).caixa._dropPlaceholderPos, -1);
+    arrastarJanela('x4', 0, SOBRE_A_MINIATURA(3)).soltar();
+    desenhar();
+    assert.equal(workspaceDe('x4'), 3);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.insercoesGlobais, 0);
+});
+
+test('vão: janela do outro monitor entra no workspace novo deste monitor', () => {
+    ligar();
+    abrirOverview();
+    arrastarJanela('y2', 0, NO_VAO_ANTES_DE(3)).soltar();
+    desenhar();
+    assert.equal(janela('y2').get_monitor(), 0);
+    assert.equal(workspaceDe('y2'), 3);
+    assert.equal(workspaceDe('x2'), 4);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.deepEqual(aVista(1), ['y1']);
+});
+
+test('vão: arrastar algo que não é janela segue o GNOME', () => {
+    ligar();
+    abrirOverview();
+    const arraste = arrastar({app: {}}, 0, NO_VAO_ANTES_DE(2));
+    assert.equal(arraste.resultado, 'continuar');
+    assert.equal(arraste.caixa._dropPlaceholderPos, -1);
+});
+
+test('vão: a janela maximizada arrastada para um vão esquece a origem e não volta ao desmaximizar', () => {
+    ligar({janelas: DIVIDINDO_O_WS1});
+    janela('x1').maximizar();
+    desenhar();
+    abrirOverview();
+    arrastarJanela('x1', 0, NO_VAO_ANTES_DE(1)).soltar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1b']);
+    focar('x1b');
+    apertar('switch-to-workspace-left');
+    assert.deepEqual(aVista(0), ['x1']);
+    janela('x1').desmaximizar();
+    desenhar();
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(workspaceDe('x1b'), 3);
+});
+
+test('vão: com a extensão inativa, soltar no vão aberto pelo GNOME segue o GNOME', () => {
+    ligar({dinamicos: true});
+    abrirOverview();
+    const arraste = arrastarJanela('x2', 0, NO_VAO_ANTES_DE(2));
+    arraste.caixa._dropPlaceholderPos = 2;
+    arraste.soltar();
+    assert.equal(estado.insercoesGlobais, 1);
+});
+
+test('vão: desligar devolve os métodos originais da faixa de miniaturas', () => {
+    const sobreOriginal = ThumbnailsBox.prototype.handleDragOver;
+    const soltarOriginal = ThumbnailsBox.prototype.acceptDrop;
+    ligar();
+    assert.notEqual(ThumbnailsBox.prototype.handleDragOver, sobreOriginal);
+    assert.notEqual(ThumbnailsBox.prototype.acceptDrop, soltarOriginal);
+    extensao.disable();
+    extensao = null;
+    assert.equal(ThumbnailsBox.prototype.handleDragOver, sobreOriginal);
+    assert.equal(ThumbnailsBox.prototype.acceptDrop, soltarOriginal);
 });

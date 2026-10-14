@@ -68,6 +68,7 @@ anterior e religa o que o instalador desativou.
 | Overview: **um clique** numa miniatura | o daquela miniatura, e o Overview fecha (como no macOS) |
 | Overview: clicar numa janela dentro da miniatura | o dela, que já abre em foco |
 | Overview: rolar sobre as miniaturas | o do ponteiro |
+| Overview: soltar uma janela no vão entre duas miniaturas | nenhum: cria um workspace ali, naquele monitor, e você continua no atual |
 | Gesto do Magic Mouse (`workspace-switch@local`) | o do ponteiro, sem mudar nada no outro repositório |
 | Gesto de 3 dedos do touchpad | o do ponteiro, e o Overview abre no workspace à vista |
 | Alt+Tab, dock e notificação para uma janela de outro workspace | o da janela escolhida |
@@ -88,6 +89,11 @@ dinâmicos do GNOME:
     também não.
 - **Sempre há um vazio no fim**, para abrir coisa nova. A navegação para a
   direita (atalho, gesto, miniatura) para nele.
+- **Soltar uma janela no vão entre duas miniaturas cria um workspace ali**, só
+  naquele monitor. O vão é o mesmo do GNOME com workspaces dinâmicos: abre
+  quando a janela chega ao meio de duas miniaturas. Os da direita andam uma
+  posição até o primeiro vazio. Sem vaga no monitor o vão não abre, e a janela
+  vai para a miniatura onde for solta.
 
 O modo dinâmico nativo do GNOME não pode ser ligado, porque ele mexe nos
 workspaces de todos os monitores juntos. Ele também nunca remove o workspace
@@ -186,6 +192,11 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
 - [ ] Overview:
   - trocar de workspace lá dentro: as janelas do novo aparecem na hora, mesmo
     mexendo o ponteiro;
+  - arrastar uma janela até o meio de duas miniaturas abre o vão; soltar ali
+    cria o workspace só naquele monitor, à esquerda e à direita do atual, e
+    você continua no atual;
+  - com o monitor cheio, o vão não abre e a janela vai para a miniatura;
+  - arrastar uma janela de um monitor para o vão da faixa do outro;
   - um clique numa miniatura já entra no workspace;
   - um clique numa janela dentro da miniatura já abre a janela;
   - arrastar uma janela para uma miniatura;

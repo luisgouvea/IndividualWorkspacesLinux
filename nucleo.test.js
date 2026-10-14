@@ -20,6 +20,7 @@ import {
     deltaParaAtalho,
     monitorDaAcao,
     ordenarMovimentos,
+    planejarInsercao,
 } from './extensao/workspaces-por-monitor@luisgouvea/nucleo.js';
 
 const CINCO = lerConfiguracao({dinamicos: false, apenasNoPrincipal: false, total: 5});
@@ -572,4 +573,59 @@ test('janelas trocando de lugar entre si não travam a ordenação', () => {
     ];
     const movimentos = [{id: 'a', global: 2}, {id: 'b', global: 1}];
     assert.deepEqual(ordenarMovimentos(movimentos, janelas), movimentos);
+});
+
+test('vão à esquerda do atual: o workspace novo entra ali e o atual continua à vista', () => {
+    const outras = [
+        {id: 'a', global: 1},
+        {id: 'b', global: 2},
+    ];
+    assert.deepEqual(planejarInsercao(outras, 1, 2, CINCO), {
+        visivel: 3,
+        deslocamento: {de: 1, ate: 2, passo: 1},
+        movimentos: [],
+        global: 0,
+    });
+});
+
+test('vão à direita do atual: empurra só os da direita e o visível não muda', () => {
+    const outras = [
+        {id: 'a', global: 2},
+        {id: 'b', global: 3},
+    ];
+    assert.deepEqual(planejarInsercao(outras, 3, 1, CINCO), {
+        visivel: 1,
+        deslocamento: {de: 2, ate: 2, passo: 1},
+        movimentos: [{id: 'b', global: 4}],
+        global: 3,
+    });
+});
+
+test('monitor cheio: o lugar que a janela arrastada deixa vago abre espaço para ela', () => {
+    const outras = [
+        {id: 'a', global: 1},
+        {id: 'c', global: 3},
+    ];
+    assert.deepEqual(planejarInsercao(outras, 1, 2, CINCO), {
+        visivel: 2,
+        deslocamento: {de: 1, ate: 1, passo: 1},
+        movimentos: [{id: 'a', global: 2}],
+        global: 1,
+    });
+});
+
+test('monitor cheio sem lugar vago não cria workspace', () => {
+    const outras = [
+        {id: 'a', global: 1},
+        {id: 'b', global: 2},
+        {id: 'c', global: 3},
+    ];
+    assert.equal(planejarInsercao(outras, 2, 2, CINCO), null);
+});
+
+test('vão além das pontas não cria workspace', () => {
+    const outras = [{id: 'a', global: 2}];
+    assert.equal(planejarInsercao(outras, 1, 1, CINCO), null);
+    assert.equal(planejarInsercao(outras, 4, 1, CINCO), null);
+    assert.notEqual(planejarInsercao(outras, 3, 1, CINCO), null);
 });

@@ -170,6 +170,22 @@ export function planejarDesmaximizar(janelas, id, visivel, origem, config) {
     return {visivel: novaOrigem, deslocamento, movimentos};
 }
 
+export function planejarInsercao(outras, global, visivel, config) {
+    const posicao = global - config.centro + visivel;
+    if (posicao < 1 || posicao > ultimoNavegavel(outras, visivel, config))
+        return null;
+
+    const vazio = vazioAPartirDe(virtuaisOcupados(outras, visivel, config), posicao, config);
+    if (vazio === null)
+        return null;
+
+    const deslocamento = {de: posicao, ate: vazio - 1, passo: 1};
+    const novoVisivel = deslocar(visivel, deslocamento);
+    const movimentos = remapear(outras, visivel, novoVisivel,
+        (_janela, virtual) => deslocar(virtual, deslocamento), config);
+    return {visivel: novoVisivel, deslocamento, movimentos, global: posicao - novoVisivel + config.centro};
+}
+
 export function posicaoAposArrumacao(virtual, ocupados) {
     return Math.max(1, ocupados.filter(o => o <= virtual).length);
 }

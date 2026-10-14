@@ -1,10 +1,12 @@
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {ThumbnailState, WorkspaceThumbnail} from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
+import {ThumbnailState, ThumbnailsBox, WorkspaceThumbnail} from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {AvisoDeWorkspace} from './aviso.js';
@@ -26,6 +28,7 @@ import {
     deltaParaAtalho,
     monitorDaAcao,
     ordenarMovimentos,
+    planejarInsercao,
 } from './nucleo.js';
 
 const PREFIXO = '[workspaces-por-monitor]';
@@ -100,6 +103,29 @@ export default class WorkspacesPorMonitor extends Extension {
                 const clone = original.call(this, janela);
                 clone.connect('selected', () => extensao._aoClicarJanelaDaMiniatura(clone.metaWindow));
                 return clone;
+            });
+
+        this._injecoes.overrideMethod(ThumbnailsBox.prototype, 'handleDragOver', original =>
+            function (source, actor, x, y, time) {
+                const vao = extensao._vaoSobOPonteiro(this, source, x);
+                if (vao === -1)
+                    return original.call(this, source, actor, x, y, time);
+                this._dropWorkspace = -1;
+                if (this._dropPlaceholderPos !== vao) {
+                    this._dropPlaceholderPos = vao;
+                    this.queue_relayout();
+                }
+                return DND.DragMotionResult.MOVE_DROP;
+            });
+
+        this._injecoes.overrideMethod(ThumbnailsBox.prototype, 'acceptDrop', original =>
+            function (source, actor, x, y, time) {
+                const vao = this._dropPlaceholderPos;
+                if (vao === -1 || !extensao._deveInterceptar())
+                    return original.call(this, source, actor, x, y, time);
+                this._dropPlaceholderPos = -1;
+                this.queue_relayout();
+                return extensao._inserirNoVao(this, source.metaWindow, vao);
             });
     }
 
@@ -359,6 +385,39 @@ export default class WorkspacesPorMonitor extends Extension {
             return;
         if (janela.located_on_workspace(global.workspace_manager.get_active_workspace()))
             janela.activate(global.get_current_time());
+    }
+
+    _vaoSobOPonteiro(caixa, fonte, x) {
+        if (!this._deveInterceptar() || !this._ehMovel(fonte.metaWindow))
+            return -1;
+        const rtl = Clutter.get_default_text_direction() === Clutter.TextDirection.RTL;
+        const espaco = caixa.get_theme_node().get_length('spacing');
+        const vao = caixa._thumbnails.findIndex((_miniatura, indice) => {
+            const [inicio, fim] = caixa._getPlaceholderTarget(indice, espaco, rtl);
+            return x > inicio && x <= fim;
+        });
+        if (vao === -1 || !this._planoDoVao(caixa, fonte.metaWindow, vao))
+            return -1;
+        return vao;
+    }
+
+    _planoDoVao(caixa, janela, vao) {
+        const monitor = caixa._monitorIndex;
+        const outras = this._doMonitor(monitor).filter(d => d.id !== janela.get_id());
+        const global = caixa._thumbnails[vao].metaWorkspace.index();
+        const plano = planejarInsercao(outras, global, this._visivel(monitor), this._config);
+        return plano && {monitor, outras, plano};
+    }
+
+    _inserirNoVao(caixa, janela, vao) {
+        const doVao = this._planoDoVao(caixa, janela, vao);
+        if (!doVao)
+            return false;
+        const {monitor, outras, plano} = doVao;
+        this._aplicarPlano(monitor, plano, outras);
+        this._origens.delete(janela.get_id());
+        Main.moveWindowToMonitorAndWorkspace(janela, monitor, plano.global);
+        return true;
     }
 
     _aoPedirJanela(destino, janela, momento) {
