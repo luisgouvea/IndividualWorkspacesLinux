@@ -184,6 +184,8 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
 - [ ] Gesto de 3 dedos no touchpad e depois abrir o Overview: a miniatura em
       destaque é a do workspace atual, também depois de bater na ponta.
 - [ ] Overview:
+  - trocar de workspace lá dentro: as janelas do novo aparecem na hora, mesmo
+    mexendo o ponteiro;
   - um clique numa miniatura já entra no workspace;
   - um clique numa janela dentro da miniatura já abre a janela;
   - arrastar uma janela para uma miniatura;

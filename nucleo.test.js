@@ -19,6 +19,7 @@ import {
     deltaParaJanela,
     deltaParaAtalho,
     monitorDaAcao,
+    ordenarMovimentos,
 } from './extensao/workspaces-por-monitor@luisgouvea/nucleo.js';
 
 const CINCO = lerConfiguracao({dinamicos: false, apenasNoPrincipal: false, total: 5});
@@ -530,4 +531,45 @@ test('sem janelas, o aviso tem um ponto só', () => {
 
 test('o aviso nunca tem menos pontos que o workspace à vista', () => {
     assert.deepEqual(planejarAviso([{id: 'a', global: 0}], 3, CINCO), {quantidade: 3, atual: 3});
+});
+
+function ordemDe(janelas, visivel, delta) {
+    const plano = planejarTroca(janelas, visivel, delta, CINCO);
+    return ordenarMovimentos(plano.movimentos, janelas).map(m => m.id);
+}
+
+test('trocar para a direita: quem sai de um workspace sai antes de quem entra nele', () => {
+    const janelas = [
+        {id: 'c', global: 3},
+        {id: 'b', global: 2},
+        {id: 'a', global: 1},
+    ];
+    assert.deepEqual(ordemDe(janelas, 2, 1), ['a', 'b', 'c']);
+});
+
+test('trocar para a esquerda: quem sai de um workspace sai antes de quem entra nele', () => {
+    const janelas = [
+        {id: 'a', global: 1},
+        {id: 'b', global: 2},
+        {id: 'c', global: 3},
+    ];
+    assert.deepEqual(ordemDe(janelas, 2, -1), ['c', 'b', 'a']);
+});
+
+test('janelas que saem do mesmo workspace mantêm a ordem entre si', () => {
+    const janelas = [
+        {id: 'b', global: 3},
+        {id: 'a1', global: 2},
+        {id: 'a2', global: 2},
+    ];
+    assert.deepEqual(ordemDe(janelas, 2, 1), ['a1', 'a2', 'b']);
+});
+
+test('janelas trocando de lugar entre si não travam a ordenação', () => {
+    const janelas = [
+        {id: 'a', global: 1},
+        {id: 'b', global: 2},
+    ];
+    const movimentos = [{id: 'a', global: 2}, {id: 'b', global: 1}];
+    assert.deepEqual(ordenarMovimentos(movimentos, janelas), movimentos);
 });

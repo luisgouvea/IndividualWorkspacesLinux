@@ -726,3 +726,20 @@ test('swipe do Magic Mouse dentro do Overview troca só o monitor do ponteiro e 
     assert.equal(estado.overviewAberto, true);
     assert.equal(estado.ajuste, indiceAtivo());
 });
+
+test('swipe dentro do Overview: no workspace à vista, a janela antiga sai antes de a nova entrar', () => {
+    ligar({ponteiro: 1});
+    abrirOverview();
+    const eventos = [];
+    estado.workspaces[2].connectObject(
+        'window-removed', (_workspace, saiu) => eventos.push(`saiu ${saiu.id}`),
+        'window-added', (_workspace, entrou) => eventos.push(`entrou ${entrou.id}`),
+        eventos);
+    deslizarNoOverview(3);
+    desenhar();
+    deslizarNoOverview(1);
+    desenhar();
+    assert.deepEqual(eventos, ['saiu y1', 'entrou y2', 'saiu y2', 'entrou y1']);
+    assert.deepEqual(aVista(1), ['y1']);
+    assert.deepEqual(aVista(0), ['x1']);
+});

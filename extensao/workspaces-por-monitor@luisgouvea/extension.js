@@ -25,6 +25,7 @@ import {
     deltaParaJanela,
     deltaParaAtalho,
     monitorDaAcao,
+    ordenarMovimentos,
 } from './nucleo.js';
 
 const PREFIXO = '[workspaces-por-monitor]';
@@ -282,7 +283,7 @@ export default class WorkspacesPorMonitor extends Extension {
 
     _aplicar(movimentos, descritas) {
         const porId = new Map(descritas.map(d => [d.id, d.janela]));
-        for (const {id, global: destino} of movimentos)
+        for (const {id, global: destino} of ordenarMovimentos(movimentos, descritas))
             porId.get(id)?.change_workspace_by_index(destino, false);
     }
 

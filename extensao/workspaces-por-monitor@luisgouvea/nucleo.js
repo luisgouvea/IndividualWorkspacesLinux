@@ -83,6 +83,17 @@ export function planejarLevarJanela(janelas, id, visivel, delta, config) {
     return plano;
 }
 
+export function ordenarMovimentos(movimentos, janelas) {
+    const origem = new Map(janelas.map(j => [j.id, j.global]));
+    const pendentes = [...movimentos];
+    const ordenados = [];
+    while (pendentes.length > 0) {
+        const livre = pendentes.findIndex(m => !pendentes.some(outro => origem.get(outro.id) === m.global));
+        ordenados.push(...pendentes.splice(Math.max(livre, 0), 1));
+    }
+    return ordenados;
+}
+
 export function deslocar(virtual, {de, ate, passo}) {
     return virtual >= de && virtual <= ate ? virtual + passo : virtual;
 }
