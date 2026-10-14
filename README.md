@@ -69,6 +69,7 @@ anterior e religa o que o instalador desativou.
 | Overview: clicar numa janela dentro da miniatura | o dela, que já abre em foco |
 | Overview: rolar sobre as miniaturas | o do ponteiro |
 | Gesto do Magic Mouse (`workspace-switch@local`) | o do ponteiro, sem mudar nada no outro repositório |
+| Gesto de 3 dedos do touchpad | o do ponteiro, e o Overview abre no workspace à vista |
 | Alt+Tab, dock e notificação para uma janela de outro workspace | o da janela escolhida |
 
 ## Workspaces dinâmicos por monitor
@@ -145,7 +146,8 @@ reordena os workspaces e bagunça o outro monitor. O instalador a desliga.
   focada. Se a animação de troca de workspace estiver ligada, pode aparecer um
   deslize rápido; a extensão "Disable Workspace Animation" resolve.
 - Na instalação, janelas que estavam além do 3º workspace vão para o 3º.
-- O gesto de touchpad do próprio GNOME não é tratado.
+- Com dois monitores, o gesto de 3 dedos do touchpad desliza os dois enquanto
+  os dedos se movem; ao soltar, só o do ponteiro troca e o outro volta.
 - Só GNOME 46.
 
 ## Diagnóstico
@@ -176,6 +178,11 @@ O teste final é sempre numa sessão GNOME real, com o checklist abaixo:
 
 - [ ] Atalho com o foco no monitor 1 e o ponteiro no 2: só o 1 troca.
 - [ ] Gesto do Magic Mouse: só o monitor do ponteiro troca.
+- [ ] Com dois monitores, trocar pelo Magic Mouse e pelo teclado e abrir as
+      miniaturas pelo teclado: cada monitor mostra o próprio workspace atual.
+      Um swipe do Magic Mouse dentro delas troca só o monitor do ponteiro.
+- [ ] Gesto de 3 dedos no touchpad e depois abrir o Overview: a miniatura em
+      destaque é a do workspace atual, também depois de bater na ponta.
 - [ ] Overview:
   - um clique numa miniatura já entra no workspace;
   - um clique numa janela dentro da miniatura já abre a janela;

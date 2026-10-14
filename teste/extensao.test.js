@@ -19,6 +19,8 @@ import {
     abrirJanela,
     uiGroup,
     passarTempo,
+    deslizarNoTouchpad,
+    deslizarNoOverview,
 } from './gnome-falso/estado.js';
 import {WorkspaceThumbnail} from './gnome-falso/miniatura.js';
 import WorkspacesPorMonitor from '../extensao/workspaces-por-monitor@luisgouvea/extension.js';
@@ -685,4 +687,42 @@ test('aviso: mudar os monitores apaga os avisos', () => {
     desenhar();
     assert.deepEqual(uiGroup.filhos, []);
     assert.equal(estado.temporizadores.size, 0);
+});
+
+test('gesto do touchpad troca só o monitor do ponteiro e o Overview abre no workspace à vista', () => {
+    ligar({ponteiro: 1});
+    deslizarNoTouchpad(3);
+    assert.deepEqual(aVista(1), ['y2']);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.ajuste, indiceAtivo());
+});
+
+test('gesto do touchpad na ponta não troca nada e o Overview continua no workspace à vista', () => {
+    ligar({ponteiro: 1});
+    deslizarNoTouchpad(1);
+    assert.deepEqual(aVista(1), ['y1']);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.ajuste, indiceAtivo());
+});
+
+test('Magic Mouse e teclado trocam cada um o seu monitor e o Overview abre no workspace à vista', () => {
+    ligar({ponteiro: 1});
+    estado.workspaces[3].activate(0);
+    assert.deepEqual(aVista(1), ['y2']);
+    assert.deepEqual(aVista(0), ['x1']);
+    focar('x1');
+    apertar('switch-to-workspace-right');
+    assert.deepEqual(aVista(0), ['x2']);
+    assert.deepEqual(aVista(1), ['y2']);
+    assert.equal(estado.ajuste, indiceAtivo());
+});
+
+test('swipe do Magic Mouse dentro do Overview troca só o monitor do ponteiro e o Overview continua aberto', () => {
+    ligar({ponteiro: 1});
+    abrirOverview();
+    deslizarNoOverview(3);
+    assert.deepEqual(aVista(1), ['y2']);
+    assert.deepEqual(aVista(0), ['x1']);
+    assert.equal(estado.overviewAberto, true);
+    assert.equal(estado.ajuste, indiceAtivo());
 });

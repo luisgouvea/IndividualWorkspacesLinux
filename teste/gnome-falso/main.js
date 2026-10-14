@@ -1,1 +1,1 @@
-export {wm, layoutManager, xdndHandler, overview, uiGroup, notify} from './estado.js';
+export {wm, layoutManager, xdndHandler, overview, uiGroup, notify, createWorkspacesAdjustment} from './estado.js';

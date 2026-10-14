@@ -50,6 +50,7 @@ function ativarPeloMutter(workspace, janela) {
         return;
     }
     estado.ativo = workspace;
+    estado.ajuste = estado.workspaces.indexOf(workspace);
     estado.trocasGlobais += 1;
     workspaceManager.emitir('active-workspace-changed');
     estado.foco = janela ?? janelaPadrao(workspace);
@@ -363,6 +364,17 @@ export const overview = {
 };
 export const xdndHandler = new Sinais();
 
+export function createWorkspacesAdjustment(_ator) {
+    return {
+        get value() {
+            return estado.ajuste;
+        },
+        set value(valor) {
+            estado.ajuste = valor;
+        },
+    };
+}
+
 export function notify(titulo, detalhe) {
     estado.notificacoes.push({titulo, detalhe});
 }
@@ -418,6 +430,7 @@ export function montarCenario({
         workspaces: Array.from({length: total}, () => new Workspace()),
     });
     estado.ativo = estado.workspaces[ativo];
+    estado.ajuste = ativo;
     estado.janelas = janelas.map(j => new JanelaFalsa(j));
     return estado;
 }
@@ -462,6 +475,18 @@ export function aVista(monitor) {
 
 export function indiceAtivo() {
     return estado.workspaces.indexOf(estado.ativo);
+}
+
+export function deslizarNoTouchpad(indice) {
+    estado.ajuste = indice;
+    const destino = estado.workspaces[indice];
+    if (destino !== estado.ativo)
+        destino.activate(0);
+}
+
+export function deslizarNoOverview(indice) {
+    deslizarNoTouchpad(indice);
+    estado.ajuste = indiceAtivo();
 }
 
 export {Sinais, Workspace, ativarPeloMutter, workspaceManager, gerenciadorDeJanelas};

@@ -47,6 +47,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._origens = new Map();
         this._ocupacoes = {};
         this._aviso = new AvisoDeWorkspace();
+        this._ajusteDosWorkspaces = Main.createWorkspacesAdjustment(Main.uiGroup);
 
         this._injecoes = new InjectionManager();
         this._injetar();
@@ -63,6 +64,7 @@ export default class WorkspacesPorMonitor extends Extension {
         this._cancelarAgendados();
         this._aviso.esconderTodos();
         this._aviso = null;
+        this._ajusteDosWorkspaces = null;
         this._config = null;
         this._visiveis = null;
         this._origens = null;
@@ -330,6 +332,7 @@ export default class WorkspacesPorMonitor extends Extension {
     _aoPedirWorkspace(destino) {
         if (this._arrastandoArquivo)
             return;
+        this._ajusteDosWorkspaces.value = global.workspace_manager.get_active_workspace_index();
         const monitor = monitorDaAcao('ponteiro', this._contexto());
         if (this._trocarNoMonitor(monitor, deltaParaGlobal(destino, this._config), planejarNavegacao))
             this._focarTopoDo(monitor);
